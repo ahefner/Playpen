@@ -63,10 +63,15 @@
 
 (defun dispatch-event (event)
   (etypecase event
+    ;; Ignore timeout events.
     (timeout)
+    ;; Window events go through HANDLE-EVENT.
     (window-event
      (let ((*window* (event-window event)))
-      (handle-event *window* event)))))
+      (handle-event *window* event)))
+    ;; IO events are handled separately.
+    (io-ready
+     (dispatch-io-event event))))
 
 ;;; This is an obvious hack. This should be a mailbox or something,
 ;;; but the framework for unifying that with the windowing event loop
@@ -117,30 +122,12 @@
           (event nil)))
       (nreverse events)))))
 
-;;; My C interface reads events eagerly without buffering, but it's
-;;; handy to have a "wait" operation that doesn't dequeue the message.
-;;; Therefore, I'll wrap GET-EVENT as NEXT-EVENT and WAIT, with a
-;;; single event buffer.
-
-;; (defvar *next-event*)
-
-;; (defun next-event (&optional deadline)
-;;   (or *next-event*
-;;       (get-event deadline)))
-
-;; (defun non-timeout (event)
-;;   (etypecase event
-;;     (timeout nil)
-;;     (event event)))
-
-;; (defun wait-event (&optional deadline)
-;;   (or *next-event*
-;;       (setf *event-event* (get-event deadline))))
-
-;;; Or maybe I won't.
+(defun next-event (&optional deadline)
+  (prepare-watched-descriptors)
+  (get-event deadline))
 
 (defun pending-events ()
-  (loop as event = (get-event 0)
+  (loop as event = (next-event 0)
         until (typep event 'timeout)
         collect event))
 
@@ -174,7 +161,7 @@
                              :initial-value nil))
            ;; FIXME: A persist-p event loop will hang here when
            ;; deadline is nil.
-           (next-event (get-event deadline)))
+           (next-event (next-event deadline)))
       ;; Give each window a chance to check for deadlines, etc.  Run
       ;; it before dispatching the next event, for the sake of
       ;; deadlines being processed before the next event.
@@ -205,6 +192,21 @@
     ;; Cleanup.
     (setf *event-loop-running* nil
           *event-loop-break* nil)))
+
+;;;; IO Dispatch
+
+(defun dispatch-io-event (io)
+  ;;; This is just a joke of a test:
+  (print (list :dispatch-io (check-fd :read 0)))
+  (when (check-fd :read 0)
+    (let ((buf (make-array 1 :element-type '(unsigned-byte 8))))
+      (cffi:with-pointer-to-vector-data (ptr buf)
+        (print (list :read (sb-unix:unix-read 0 ptr 1)
+                     :buffer buf))))))
+
+(defun prepare-watched-descriptors ()
+  ;;; Test code:
+  (watch-fd :read 0))
 
 ;;; FIXME: Should be more strict about ensuring the UI always runs in
 ;;; the same thread. We can get away with almost anything on X, but

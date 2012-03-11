@@ -60,6 +60,8 @@ enum event_type {
     ev_Mapped, ev_Unmapped,
     ev_CloseReq,
     ev_Expose, ev_Resized,
+    /* IO Multiplexing */
+    ev_IOReady,
     /* Other Events */
     ev_Timeout
 };
@@ -73,7 +75,6 @@ struct event {
     unsigned button;            /* button # pressed */
     unsigned new_button_state;
     unsigned old_button_state;
-
 
     /* Keyboard state */
     unsigned modifier_mask; /* defined for all keyboard and pointer events */
@@ -98,5 +99,17 @@ get_event_blocking (struct event *event_out);
 
 void
 get_event_with_deadline (struct event *event_out, long long deadline);
+
+/* IO Events */
+
+void
+reset_watched_fds (void);
+
+void
+watch_fd (int setidx, int fd);
+
+int
+check_fd (int setidx, int fd);
+
 
 #endif

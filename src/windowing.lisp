@@ -280,6 +280,7 @@
   :close-request
   :expose
   :resized
+  :io-ready
   :timeout)
 
 (cffi:defcstruct event
@@ -404,6 +405,8 @@
      event-old-dimension-trait)
   ())
 
+(defclass io-ready (event) ())
+
 (defclass timeout (event) ())
 
 (defun event-keyword->class (type-keyword)
@@ -422,6 +425,7 @@
     (:close-request  'close-request)
     (:expose         'expose)
     (:resized        'resized)
+    (:io-ready       'io-ready)
     (:timeout        'timeout)))
 
 (defun translate-c-event (c-event-pointer)
@@ -503,3 +507,18 @@
 ;;; FIXME: Probably misguided.
 #+unix (cffi:defcfun (getproc "glXGetProcAddress") :pointer (name :string))
 (setf cl-opengl-bindings:*gl-get-proc-address* 'getproc)
+
+(cffi:defcfun reset-watched-fds :void)
+
+(cffi:defcenum watch-type
+  (:read 0)
+  (:write 1)
+  (:exception 2))
+
+(cffi:defcfun watch-fd :void
+  (setidx watch-type)
+  (fd :int))
+
+(cffi:defcfun check-fd :boolean
+  (setidx watch-type)
+  (fd :int))

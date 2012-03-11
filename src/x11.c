@@ -100,6 +100,8 @@ pwin_init (char *display_name)
 
     if (initialized) return 0;
 
+    reset_watched_fds();
+
     display = XOpenDisplay(display_name);
     if (!display) return 1;
     XSynchronize(display, True);
@@ -530,20 +532,26 @@ trace_translate_event (XEvent *in, struct event *out)
 }
 
 
-static fd_set fdsets[3];
+/* These are the sets of monitored file descriptor. When one becomes
+ * ready, get-event returns an IO Ready event. These are not modified
+ * by GET-EVENT. reset_watched_fds and watch_fd control these. */
+static fd_set watchsets[3];
 static int max_watched_fd = -1;
+
+/* GET-EVENT copies the above watchsets into the fdsets array, which
+ * is used for the arguments to select(2). After a call to get-event,
+ * these contain the ready descriptors, as per select. check_fd
+ * examines these, and is only valid after a get_event call. */
+static fd_set fdsets[3];
 #define RDSET (&fdsets[0])
 #define WRSET (&fdsets[1])
 #define EXSET (&fdsets[2])
 
-
-/*
 void
 reset_watched_fds (void)
 {
     int i;
-    for (i=0; i<3; i++)
-        FD_ZERO(&fdsets[i]);
+    for (i=0; i<3; i++) FD_ZERO(&watchsets[i]);
     max_watched_fd = -1;
 }
 
@@ -551,17 +559,25 @@ void
 watch_fd (int setidx, int fd)
 {
     if ((setidx >= 0) && (setidx <= 2) && (fd >= 0)) {
-        FD_SET(fd, &fdsets[setidx]);
+        FD_SET(fd, &watchsets[setidx]);
         if (fd > max_watched_fd) max_watched_fd = fd;
     } else {
         fprintf(stderr, "watch_fd(%i,%i) bad args!\n", setidx, fd);
     }
 }
-*/
+
+int
+check_fd (int setidx, int fd)
+{
+    if ((setidx >= 0) && (setidx <= 2) && (fd >= 0)) {
+        return (FD_ISSET(fd,&fdsets[setidx])? 1 : 0);
+    } else fprintf(stderr, "check_fd(%i,%i) is sad.\n", setidx, fd);
+}
 
 static int
 nonblock_get_x_event (struct event *event_out)
 {
+    int rejected = 0;
     XEvent ev;
 
     /* The intent of using XEventsQueued in this way is to prevent a
@@ -571,8 +587,14 @@ nonblock_get_x_event (struct event *event_out)
     {
         XNextEvent(display, &ev);
         if (trace_translate_event(&ev, event_out)) return 1;
+        rejected = 1;
     }
-    if (debugev) fprintf(stderr, "nonblock_get_x_event: rejected everything.\n");
+
+    if (debugev) {
+        if (rejected) fprintf(stderr, "  nonblock_get_x_event: rejected everything.\n");
+        else fprintf(stderr, "  nonblock_get_x_event: I got nothing.\n");
+    }
+
     return 0;
 }
 
@@ -590,21 +612,52 @@ get_event_inner (struct event *event_out, int blocking, long long deadline)
 
     if (debugev) fprintf(stderr, " get_event_inner %lli\n", deadline);
 
+    /* In case reset_watched_fds was never called. */
+    if (max_watched_fd == -1) {
+        for (i=0; i<3; i++)
+            FD_ZERO(&fdsets[i]);
+    }
+
     /* Wait for event / deadline */
     while (1)
     {
         /* If there's a translatable X event, return that. */
         if (nonblock_get_x_event(event_out)) return;
 
-        /* Prepare file descriptors for select(2) */
-        for (i=0; i<3; i++) FD_ZERO(&fdsets[i]);
-        FD_SET(xfd, RDSET);
+        /* Prepare file descriptors for select(2) -- */
+        /* Initialize from watched FDs and add X connection */
+        maxfd = max_watched_fd;
+        for (i=0; i<3; i++)
+            memcpy(&fdsets[i], &watchsets[i], sizeof(fdsets[i]));
 
+        FD_SET(xfd, RDSET);
+        if (xfd > maxfd) maxfd = xfd;
 
         if (blocking)
         {
             /** Blocking read. **/
-            tmp = select(maxfd+1, RDSET, WRSET, EXSET, NULL);
+            int num_fds  = select(maxfd+1, RDSET, WRSET, EXSET, NULL);
+
+            if (num_fds <= 0) {
+                perror("select");
+                XSync(display,False);
+                event_out->type = ev_Timeout;
+                return;
+            }
+
+            if (FD_ISSET(xfd, RDSET)) {
+                /* If there are X events, we'll read them next time
+                 * through the loop.  */
+                if (XPending(display) > 0) continue;
+                /*  */
+                num_fds--;
+            }
+
+            if (num_fds) {
+                // fprintf(stderr, "%i FDs ready.\n", num_fds);
+                event_out->type = ev_IOReady;
+                return;
+            }
         }
         else
         {
@@ -622,6 +675,7 @@ get_event_inner (struct event *event_out, int blocking, long long deadline)
             tv.tv_sec = delta / 1000000ll;
             tv.tv_usec = delta % 1000000ll;
             tmp = select(maxfd+1, RDSET, WRSET, EXSET, &tv);
+            if (debugev) fprintf(stderr, " select()\n");
 
             if (!tmp)
             {
@@ -631,23 +685,37 @@ get_event_inner (struct event *event_out, int blocking, long long deadline)
             }
             else if (tmp < 0)
             {
-                /* Something is amiss */
+                /* Something is amiss. */
                 perror("select");
+                XSync(display,False);
                 event_out->type = ev_Timeout; /* ? */
                 return;
             }
             else
             {
-                /* Otherwise, no timeout and >0 FDs ready. */
-                /* Check if it's an X11 event, otherwise return IOReady? */
-                //event_out->type = ev_IOReady;
-                //fprintf(stderr, "select => %i\n", tmp);
-            }
-        }
+                /* Didn't time out, and file descriptors are ready. */
 
-        if (FD_ISSET(xfd, RDSET) && (XPending(display) > 0)) {
-            /* Curious.. */
-            if (debugev) fprintf(stderr, "  partial X11 event in buffer?\n");
+                /* It's important to note that the XPending call here
+                 * causes xlib to read from its socket. Otherwise
+                 * events would just pile up. */
+                if (debugev) fprintf(stderr, " FD ready\n");
+                if (FD_ISSET(xfd, RDSET) && (XPending(display) > 0)) {
+                    continue;
+                } else {
+                    int num_fds = tmp;
+                    /* I wonder if this can happen. */
+                    if (FD_ISSET(xfd, RDSET)) {
+                        num_fds--;
+                        fprintf(stderr, "  partial X11 event in buffer?\n");
+                    }
+
+                    assert(num_fds >= 0);
+                    if (num_fds > 0) {
+                        event_out->type = ev_IOReady;
+                        return;
+                    }
+                }
+            }
         }
 
         /* Continue waiting.. */
@@ -672,4 +740,3 @@ get_event_blocking (struct event *event_out)
     if (ticks) fprintf(stderr, ":");
     get_event_inner(event_out, 1, 0);
 }
-

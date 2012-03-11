@@ -94,6 +94,7 @@
    #:close-request
    #:expose
    #:resized
+   #:io-ready
    #:timeout
 
    #:event-type
@@ -121,6 +122,9 @@
    #:+pointer-wheel-left+
    #:+pointer-wheel-right+
 
+   #:reset-watched-fds
+   #:watch-fd
+   #:check-fd
    #:get-event
    #:usectime))
 
