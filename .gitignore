@@ -1,0 +1,9 @@
+*~*
+*.fasl
+*.lo
+a.out
+.libs
+libpwin.la
+libpwin.so.0
+libpwin.so.0.0.0
+

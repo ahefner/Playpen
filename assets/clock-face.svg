@@ -1,0 +1,497 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!-- Created with Inkscape (http://www.inkscape.org/) -->
+
+<svg
+   xmlns:osb="http://www.openswatchbook.org/uri/2009/osb"
+   xmlns:dc="http://purl.org/dc/elements/1.1/"
+   xmlns:cc="http://creativecommons.org/ns#"
+   xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+   xmlns:svg="http://www.w3.org/2000/svg"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:xlink="http://www.w3.org/1999/xlink"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   width="512"
+   height="512"
+   id="svg2"
+   version="1.1"
+   inkscape:version="0.48.1 r9760"
+   sodipodi:docname="clock-face.svg"
+   inkscape:export-filename="/home/hefner/cl/playpen/assets/clock-face.png"
+   inkscape:export-xdpi="180"
+   inkscape:export-ydpi="180">
+  <defs
+     id="defs4">
+    <linearGradient
+       id="linearGradient5439">
+      <stop
+         style="stop-color:#79bb3f;stop-opacity:0.45217392;"
+         offset="0"
+         id="stop5441" />
+      <stop
+         id="stop5447"
+         offset="0.5294233"
+         style="stop-color:#d5db55;stop-opacity:0.2173913;" />
+      <stop
+         style="stop-color:#fa4545;stop-opacity:0.06956521;"
+         offset="1"
+         id="stop5443" />
+    </linearGradient>
+    <linearGradient
+       id="linearGradient4922"
+       osb:paint="solid">
+      <stop
+         style="stop-color:#2e2e2e;stop-opacity:1;"
+         offset="0"
+         id="stop4924" />
+    </linearGradient>
+    <inkscape:perspective
+       sodipodi:type="inkscape:persp3d"
+       inkscape:vp_x="-144 : 192 : 1"
+       inkscape:vp_y="0 : 1000 : 0"
+       inkscape:vp_z="368 : 192 : 1"
+       inkscape:persp3d-origin="112 : 106.66667 : 1"
+       id="perspective4601" />
+    <filter
+       id="filter4560"
+       inkscape:label="Raised border"
+       inkscape:menu="Bevels"
+       inkscape:menu-tooltip="Strongly raised border around a flat surface"
+       height="1.5"
+       width="1.5"
+       y="-0.25"
+       x="-0.25"
+       color-interpolation-filters="sRGB">
+      <feGaussianBlur
+         id="feGaussianBlur4562"
+         stdDeviation="4"
+         result="result1" />
+      <feComposite
+         id="feComposite4564"
+         in2="result1"
+         in="result1"
+         result="result4"
+         operator="in" />
+      <feGaussianBlur
+         id="feGaussianBlur4566"
+         stdDeviation="2"
+         result="result6"
+         in="result4" />
+      <feComposite
+         id="feComposite4568"
+         in2="result4"
+         operator="xor"
+         in="result6"
+         result="result8" />
+      <feComposite
+         id="feComposite4570"
+         in2="result8"
+         operator="atop"
+         result="fbSourceGraphic"
+         in="result4" />
+      <feSpecularLighting
+         id="feSpecularLighting4572"
+         specularExponent="10"
+         specularConstant="1.3"
+         surfaceScale="3"
+         lighting-color="rgb(255,255,255)"
+         result="result1"
+         in="fbSourceGraphic">
+        <feDistantLight
+           id="feDistantLight4574"
+           azimuth="235"
+           elevation="55" />
+      </feSpecularLighting>
+      <feComposite
+         id="feComposite4576"
+         in2="fbSourceGraphic"
+         operator="atop"
+         result="result2"
+         in="result1" />
+      <feComposite
+         id="feComposite4578"
+         in2="result2"
+         k3="1"
+         k2="1"
+         operator="arithmetic"
+         result="result4"
+         in="fbSourceGraphic" />
+      <feComposite
+         id="feComposite4580"
+         in2="SourceGraphic"
+         operator="over"
+         in="result4"
+         result="result9" />
+      <feBlend
+         id="feBlend4582"
+         in2="result2"
+         mode="multiply" />
+    </filter>
+    <filter
+       inkscape:collect="always"
+       id="filter4858"
+       x="-0.19561015"
+       width="1.3912203"
+       y="-0.21905401"
+       height="1.438108">
+      <feGaussianBlur
+         inkscape:collect="always"
+         stdDeviation="15.720162"
+         id="feGaussianBlur4860" />
+    </filter>
+    <mask
+       maskUnits="userSpaceOnUse"
+       id="mask4910">
+      <path
+         inkscape:export-ydpi="180"
+         inkscape:export-xdpi="180"
+         inkscape:export-filename="/home/hefner/cl/playpen/assets/clock-hand-1.png"
+         inkscape:transform-center-x="0.024052108"
+         transform="matrix(0.07179256,0.01584792,-6.2667138e-4,1.0337401,313.52464,-70.926827)"
+         inkscape:transform-center-y="-46.11513"
+         d="m 259,143.65463 100.92791,164.41998 -192.85583,5.19615 z"
+         inkscape:randomized="0"
+         inkscape:rounded="0"
+         inkscape:flatsided="true"
+         sodipodi:arg2="-0.55053544"
+         sodipodi:arg1="-1.597733"
+         sodipodi:r2="87.672684"
+         sodipodi:r1="111.38577"
+         sodipodi:cy="255"
+         sodipodi:cx="262"
+         sodipodi:sides="3"
+         id="path4912"
+         style="fill:#6c6c6c;fill-opacity:1;fill-rule:nonzero;stroke:none;filter:url(#filter4858)"
+         sodipodi:type="star" />
+    </mask>
+    <linearGradient
+       inkscape:collect="always"
+       xlink:href="#linearGradient4922"
+       id="linearGradient4926"
+       x1="232.18249"
+       y1="213.39117"
+       x2="258.37146"
+       y2="213.39117"
+       gradientUnits="userSpaceOnUse"
+       gradientTransform="matrix(0.85463987,0,0,0.95718225,48.102655,9.999537)" />
+    <filter
+       inkscape:collect="always"
+       id="filter5246">
+      <feGaussianBlur
+         inkscape:collect="always"
+         stdDeviation="0.88184397"
+         id="feGaussianBlur5248" />
+    </filter>
+    <linearGradient
+       inkscape:collect="always"
+       xlink:href="#linearGradient4922"
+       id="linearGradient5250"
+       gradientUnits="userSpaceOnUse"
+       gradientTransform="matrix(0.85463987,0,0,0.95718225,48.102655,9.999537)"
+       x1="232.18249"
+       y1="213.39117"
+       x2="258.37146"
+       y2="213.39117" />
+    <filter
+       inkscape:collect="always"
+       id="filter5311"
+       x="-0.54882033"
+       width="2.0976407"
+       y="-0.49892757"
+       height="1.9978551">
+      <feGaussianBlur
+         inkscape:collect="always"
+         stdDeviation="4.5735027"
+         id="feGaussianBlur5313" />
+    </filter>
+    <filter
+       inkscape:collect="always"
+       id="filter5365">
+      <feGaussianBlur
+         inkscape:collect="always"
+         stdDeviation="0.55872656"
+         id="feGaussianBlur5367" />
+    </filter>
+    <mask
+       maskUnits="userSpaceOnUse"
+       id="mask5415">
+      <path
+         style="fill:#e95224;fill-opacity:1;stroke:none;display:inline;filter:url(#filter5365)"
+         d="M 260,37.65625 C 131.68303,37.65625 27.65625,141.68303 27.65625,270 c 0,55.25282 19.291272,105.99678 51.5,145.875 C 84.449553,239.61042 220.99859,96.342963 394.40625,80.46875 356.46584,53.515624 310.08342,37.65625 260,37.65625 z"
+         id="path5417"
+         inkscape:connector-curvature="0" />
+    </mask>
+    <linearGradient
+       inkscape:collect="always"
+       xlink:href="#linearGradient5439"
+       id="linearGradient5445"
+       x1="181.29187"
+       y1="133.93779"
+       x2="374.689"
+       y2="390.30142"
+       gradientUnits="userSpaceOnUse" />
+    <filter
+       id="filter5587"
+       inkscape:label="Gouache"
+       inkscape:menu="Textures"
+       inkscape:menu-tooltip="Partly opaque water color effect with bleed"
+       color-interpolation-filters="sRGB">
+      <feTurbulence
+         id="feTurbulence5589"
+         numOctaves="3"
+         seed="0"
+         type="turbulence"
+         baseFrequency="0.04"
+         result="result91" />
+      <feDisplacementMap
+         id="feDisplacementMap5591"
+         in2="result91"
+         scale="6.6"
+         yChannelSelector="G"
+         xChannelSelector="R"
+         in="SourceGraphic"
+         result="fbSourceGraphic" />
+      <feColorMatrix
+         result="fbSourceGraphicAlpha"
+         in="fbSourceGraphic"
+         values="0 0 0 -1 0 0 0 0 -1 0 0 0 0 -1 0 0 0 0 1 0"
+         id="feColorMatrix3196" />
+      <feGaussianBlur
+         id="feGaussianBlur3198"
+         stdDeviation="3"
+         result="result5"
+         in="fbSourceGraphic" />
+      <feTurbulence
+         id="feTurbulence3200"
+         result="result1"
+         baseFrequency="0.02"
+         type="fractalNoise"
+         seed="0"
+         numOctaves="3" />
+      <feDisplacementMap
+         id="feDisplacementMap3202"
+         in2="result1"
+         result="result3"
+         in="fbSourceGraphic"
+         xChannelSelector="R"
+         yChannelSelector="G"
+         scale="30" />
+      <feComposite
+         id="feComposite3204"
+         in2="result1"
+         result="result4"
+         in="result3"
+         operator="out" />
+      <feComposite
+         id="feComposite3206"
+         in2="result4"
+         result="result6"
+         operator="arithmetic"
+         k2="1"
+         k1="0.3"
+         k3="0.3" />
+      <feComposite
+         id="feComposite3208"
+         in2="result5"
+         in="result6"
+         operator="over" />
+    </filter>
+  </defs>
+  <sodipodi:namedview
+     id="base"
+     pagecolor="#ffffff"
+     bordercolor="#666666"
+     borderopacity="1.0"
+     inkscape:pageopacity="0.0"
+     inkscape:pageshadow="2"
+     inkscape:zoom="1"
+     inkscape:cx="-108.10057"
+     inkscape:cy="306.25126"
+     inkscape:document-units="px"
+     inkscape:current-layer="layer1"
+     showgrid="false"
+     fit-margin-left="-256"
+     fit-margin-right="256"
+     fit-margin-top="-256"
+     fit-margin-bottom="256"
+     inkscape:snap-page="false"
+     inkscape:window-width="1401"
+     inkscape:window-height="932"
+     inkscape:window-x="345"
+     inkscape:window-y="116"
+     inkscape:window-maximized="0"
+     inkscape:snap-global="true" />
+  <metadata
+     id="metadata7">
+    <rdf:RDF>
+      <cc:Work
+         rdf:about="">
+        <dc:format>image/svg+xml</dc:format>
+        <dc:type
+           rdf:resource="http://purl.org/dc/dcmitype/StillImage" />
+        <dc:title />
+      </cc:Work>
+    </rdf:RDF>
+  </metadata>
+  <g
+     inkscape:label="Clock Face"
+     inkscape:groupmode="layer"
+     id="layer1"
+     transform="translate(0,-540.36218)"
+     style="display:inline">
+    <path
+       sodipodi:type="arc"
+       style="fill:#3c3c3c;fill-opacity:1;stroke:#595959;stroke-width:23.2795887;stroke-linecap:round;stroke-linejoin:round;stroke-miterlimit:4;stroke-opacity:1;stroke-dasharray:none;stroke-dashoffset:0;filter:url(#filter4560)"
+       id="path2993"
+       sodipodi:cx="257"
+       sodipodi:cy="255"
+       sodipodi:rx="254"
+       sodipodi:ry="254"
+       d="M 511,255 C 511,395.28033 397.28033,509 257,509 116.71967,509 3,395.28033 3,255 3,114.71967 116.71967,1 257,1 397.28033,1 511,114.71967 511,255 z"
+       transform="matrix(0.89503318,0,0,0.89503318,25.976473,568.12872)" />
+    <path
+       sodipodi:type="star"
+       style="opacity:0.51502146999999998;fill:url(#linearGradient5445);fill-opacity:1;fill-rule:nonzero;stroke:none;"
+       id="path5437"
+       sodipodi:sides="12"
+       sodipodi:cx="260"
+       sodipodi:cy="252"
+       sodipodi:r1="235.00851"
+       sodipodi:r2="117.50425"
+       sodipodi:arg1="0.0085104328"
+       sodipodi:arg2="0.27030982"
+       inkscape:flatsided="false"
+       inkscape:rounded="0"
+       inkscape:randomized="0"
+       d="m 495,254 -121.76254,29.37716 89.27851,87.85489 -120.13803,-35.4399 33.39001,120.72382 L 289.44531,365.7551 258,487 228.62284,365.23746 140.76795,454.51597 176.20785,334.37794 55.484027,367.76795 146.2449,281.44531 24.999996,250 146.76254,220.62284 57.484027,132.76795 177.62206,168.20785 144.23205,47.484027 230.55469,138.2449 262,16.999996 291.37716,138.76254 379.23205,49.484027 343.79215,169.62206 464.51597,136.23205 373.7551,222.55469 z"
+       transform="matrix(0.88931529,-0.00908535,0.00908535,0.88931529,21.488515,572.61691)" />
+  </g>
+  <g
+     inkscape:groupmode="layer"
+     id="layer3"
+     inkscape:label="Hour hand"
+     style="display:inline"
+     sodipodi:insensitive="true">
+    <path
+       style="fill:#313131;fill-opacity:1;fill-rule:nonzero;stroke:url(#linearGradient4926);stroke-width:2.71337676;stroke-miterlimit:4;stroke-opacity:1;stroke-dasharray:none"
+       d="m 268.48988,279.75023 c -4.6908,6.08704 -16.87034,5.37054 -21.52749,-0.74882 -7.59299,-9.977 -8.2564,-16.86764 3.79977,-129.55719 0.46459,-4.34255 11.21122,-5.0263 11.69914,-0.68694 12.76197,113.50163 14.9744,119.38436 6.02858,130.99295 z"
+       id="path4919"
+       inkscape:connector-curvature="0"
+       sodipodi:nodetypes="sssss" />
+    <path
+       sodipodi:nodetypes="sssss"
+       inkscape:connector-curvature="0"
+       id="path5178"
+       d="m 268.48988,279.75023 c -4.6908,6.08704 -16.87034,5.37054 -21.52749,-0.74882 -7.59299,-9.977 -8.2564,-16.86764 3.79977,-129.55719 0.46459,-4.34255 11.21122,-5.0263 11.69914,-0.68694 12.76197,113.50163 14.9744,119.38436 6.02858,130.99295 z"
+       style="fill:#2f2f2f;fill-opacity:1;fill-rule:nonzero;stroke:url(#linearGradient5250);stroke-width:2.71337676;stroke-miterlimit:4;stroke-opacity:1;stroke-dasharray:none" />
+    <path
+       sodipodi:nodetypes="sssss"
+       inkscape:connector-curvature="0"
+       id="path5184"
+       d="m 269.51737,273.80427 c -5.30982,6.15216 -19.09664,5.42799 -24.36836,-0.75684 -8.59499,-10.08372 -9.34594,-17.04807 4.30121,-130.94314 0.5259,-4.389 12.6907,-5.08006 13.243,-0.69429 14.44611,114.71583 16.9505,120.6615 6.82415,132.39427 z"
+       style="fill:#323232;fill-opacity:1;fill-rule:nonzero;stroke:none;filter:url(#filter5246)"
+       transform="matrix(0.83620598,0,0,0.96337564,41.784593,14.381784)" />
+  </g>
+  <g
+     inkscape:groupmode="layer"
+     id="layer2"
+     inkscape:label="Minute Hand"
+     style="display:inline"
+     sodipodi:insensitive="true">
+    <path
+       sodipodi:type="star"
+       style="fill:#617d29;fill-opacity:1;fill-rule:nonzero;stroke:#474747;stroke-width:10.17067909;stroke-linecap:round;stroke-linejoin:round;stroke-miterlimit:4;stroke-opacity:1;stroke-dasharray:none;stroke-dashoffset:0"
+       sodipodi:sides="3"
+       sodipodi:cx="262"
+       sodipodi:cy="255"
+       sodipodi:r1="111.38577"
+       sodipodi:r2="87.672684"
+       sodipodi:arg1="-1.597733"
+       sodipodi:arg2="-0.55053544"
+       inkscape:flatsided="true"
+       inkscape:rounded="0"
+       inkscape:randomized="0"
+       d="m 259,143.65463 100.92791,164.41998 -192.85583,5.19615 z"
+       inkscape:transform-center-y="-56.049586"
+       transform="matrix(0.07772778,0.019262,-6.7847946e-4,1.256436,237.20348,-114.35733)"
+       inkscape:transform-center-x="0.026036995"
+       inkscape:export-filename="/home/hefner/cl/playpen/assets/clock-hand-1.png"
+       inkscape:export-xdpi="180"
+       inkscape:export-ydpi="180"
+       id="path3036" />
+    <path
+       inkscape:export-ydpi="180"
+       inkscape:export-xdpi="180"
+       inkscape:export-filename="/home/hefner/cl/playpen/assets/clock-hand-1.png"
+       inkscape:transform-center-x="0.026036995"
+       transform="matrix(0.07772778,0.01778799,-6.7847946e-4,1.1602884,237.20348,-100.64959)"
+       inkscape:transform-center-y="-51.760457"
+       d="m 259,143.65463 100.92791,164.41998 -192.85583,5.19615 z"
+       inkscape:randomized="0"
+       inkscape:rounded="0"
+       inkscape:flatsided="true"
+       sodipodi:arg2="-0.55053544"
+       sodipodi:arg1="-1.597733"
+       sodipodi:r2="87.672684"
+       sodipodi:r1="111.38577"
+       sodipodi:cy="255"
+       sodipodi:cx="262"
+       sodipodi:sides="3"
+       id="path4832"
+       style="fill:none;stroke:none"
+       sodipodi:type="star" />
+    <path
+       style="fill:#fbfeec;fill-opacity:0.72619042;fill-rule:nonzero;stroke:none"
+       d="m 330.67809,69.015227 c -2.4476,62.844413 -4.86288,125.995963 -7.29805,188.958503 0.078,6.80019 0.85898,1.66722 1.22694,3.13507 4.63575,-0.78259 9.27149,-1.56518 13.90724,-2.34778 0.36969,-4.36323 -0.33266,-11.53004 -0.43047,-16.84285 -2.39094,-57.41897 -4.78189,-114.83793 -7.17284,-172.256893 -0.0729,-1.133535 -0.13806,-1.198901 -0.23282,-0.64605 z"
+       id="path4866"
+       inkscape:connector-curvature="0"
+       mask="url(#mask4910)"
+       transform="matrix(1,0,0,1.1226184,-73.539107,-12.70518)"
+       inkscape:export-xdpi="180"
+       inkscape:export-ydpi="180"
+       inkscape:export-filename="/home/hefner/cl/playpen/assets/clock-hand-1.png" />
+  </g>
+  <g
+     inkscape:groupmode="layer"
+     id="layer4"
+     inkscape:label="Second Hand"
+     style="display:inline"
+     sodipodi:insensitive="true">
+    <rect
+       style="fill:#c8c8c8;fill-opacity:1;fill-rule:nonzero;stroke:none"
+       id="rect5253"
+       width="6"
+       height="246"
+       x="253"
+       y="47" />
+  </g>
+  <g
+     inkscape:groupmode="layer"
+     id="layer5"
+     inkscape:label="shine"
+     style="display:inline"
+     sodipodi:insensitive="true">
+    <g
+       id="g5375"
+       transform="translate(-4,-14)"
+       mask="url(#mask5415)">
+      <path
+         transform="matrix(9.7693629,0,0,9.7693629,-1183.6413,-1031.2324)"
+         d="m 144,114 a 10,11 0 1 1 -20,0 10,11 0 1 1 20,0 z"
+         sodipodi:ry="11"
+         sodipodi:rx="10"
+         sodipodi:cy="114"
+         sodipodi:cx="134"
+         id="path5273"
+         style="fill:#ffffff;fill-opacity:1;fill-rule:nonzero;stroke:none;filter:url(#filter5311)"
+         sodipodi:type="arc" />
+      <rect
+         y="-17"
+         x="8"
+         height="532"
+         width="539"
+         id="rect5315"
+         style="fill:#ffffff;fill-opacity:0.02777776;fill-rule:nonzero;stroke:none" />
+    </g>
+  </g>
+</svg>

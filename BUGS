@@ -1,0 +1,5 @@
+* Event loop :persist t broken: will lock up when there are no open
+  windows due to blocking get-event call. (untested)
+
+
+
