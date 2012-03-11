@@ -183,7 +183,6 @@ create_window (enum window_type type, char *app_name,
 {
     struct window *window;
     Window xwin;
-    GLXWindow glx_window;
     XSetWindowAttributes swa;
     XEvent event;
     XSizeHints sizehints;
@@ -216,8 +215,6 @@ create_window (enum window_type type, char *app_name,
     //XChangeProperty(display, xwin, XA_WM_PROTOCOLS, XA_WM_HINTS, 4, PropModeReplace,
     XSetWMProtocols(display, xwin, &protocols, 1);
 
-    //glx_window = glXCreateWindow(display, fbconfig, xwin, NULL);
-
     XMapWindow(display, xwin);
 
     /* Wait until window is mapped. */
@@ -228,7 +225,6 @@ create_window (enum window_type type, char *app_name,
 
     window->user = NULL;
     window->window = xwin;
-    //window->glx_window = glx_window;
     window->width = width;
     window->height = height;
     XSaveContext(display, xwin, window_ptr_ctx, (XPointer)window);
@@ -294,7 +290,6 @@ window_end_paint (struct window *window)
 {
     assert(already_in_paint);
     glFlush();
-    // I don't get it. Specs say this is supposed to take a GLX drawable.
     glXSwapBuffers(display, window->window);
     already_in_paint = 0;
     // We could release the context here. Don't see much point in it, though.
@@ -402,7 +397,6 @@ translate_event (XEvent *xev, struct event *event_out)
     case KeyPress:
     case KeyRelease:
         event_out->type = xev->type == KeyPress? ev_KeyPress : ev_KeyRelease;
-        //event_out->window = lookup_window(xev->xkey.window);
         event_out->modifier_mask = extract_modmask(xev->xkey.state);
         event_out->old_button_state = extract_button_state(xev->xkey.state);
         event_out->new_button_state = event_out->old_button_state;
@@ -679,19 +673,3 @@ get_event_blocking (struct event *event_out)
     get_event_inner(event_out, 1, 0);
 }
 
-/*
-void
-get_event_blocking (struct event *event_out)
-{
-    XEvent ev;
-
-    assert(event_out != NULL);
-    memset(event_out, 0, sizeof(*event_out));
-    event_out->type = ev_Timeout;
-
-    if (debugev) fprintf(stderr, "get_event_blocking\n");
-
-    do XNextEvent(display, &ev);
-    while (!trace_translate_event(&ev, event_out));
-}
-*/

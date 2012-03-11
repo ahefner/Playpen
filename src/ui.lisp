@@ -182,6 +182,8 @@
         (event-loop-hook *window*))
       (dispatch-event next-event))))
 
+(defvar *event-loop-running* nil)
+
 (defun inner-event-loop (&key persist)
   (assert (eql *event-loop-running* :this-thread))
   (loop while (continue-event-loop-p persist)
@@ -190,8 +192,6 @@
         (force-output *standard-output*)
         (force-output *trace-output*)
         (event-loop-step persist)))
-
-(defvar *event-loop-running* nil)
 
 (defun run-event-loop (&key persist)
   (initialize-display)

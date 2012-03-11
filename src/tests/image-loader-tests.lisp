@@ -29,7 +29,7 @@
    num-threads
    files
    (lambda (file)
-     (handler-case (print (cons (read-jpeg file :configurator configurator)
+     (handler-case (print (cons (read-jpeg-file file :configurator configurator)
                                 file))
        (jpeg-decoder-error (c)
          (format t "~&ERROR: ~A~%" c))
@@ -41,6 +41,6 @@
    num-threads
    files
    (lambda (file)
-     (handler-case (print (read-png file))
+     (handler-case (print (read-png-file file))
        (png-error (c)
          (format t "~&~A~%" c))))))
