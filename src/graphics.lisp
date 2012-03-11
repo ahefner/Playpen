@@ -228,7 +228,7 @@
   (gl:check-error)
   (multiple-value-bind (internal format type)
       (opengl-image-formats image)
-    (with-array-pointer (pointer (data-array image))
+    (cffi:with-pointer-to-vector-data (pointer (data-array image))
       (gl:pixel-store :unpack-row-length (image-pitch image))
       (cond
         ((mipmap-p texture)

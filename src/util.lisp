@@ -25,8 +25,6 @@
 
 (in-package :putil)
 
-
-
 (define-condition textual-condition ()
   ((text :initarg :text))
   (:report
@@ -74,7 +72,8 @@ to the right (e.g. (extend-shift #b101 3) => #b101111"
              (= (extend-shift #b100 2) #b10000)))
 
 (defmacro orf (place value)
-  ;; Can multiply evaluate place. Whatever, too much trouble to fix.
+  ;; FIXME: Can multiply evaluate forms inside of the place
+  ;; expression.
   `(or ,place (setf ,place ,value)))
 
 (define-modify-macro minf (other) min)
@@ -91,29 +90,6 @@ to the right (e.g. (extend-shift #b101 3) => #b101111"
              (cons (first slotspec))
              (symbol slotspec))))
     `(defstruct (,name (:constructor ,name ,(mapcar #'slot-name slots))) ,@slots)))
-
-;;; Obtaining a pointer to an array of unboxed data.
-;;; CFFI doesn't include this facility, and apparently not all lisps
-;;; support it. If a lisp can't do this, its FFI is fucking broken and
-;;; probably not worth supporting anyway.
-
-#+SBCL
-(defmacro with-array-pointer ((name array) &body body)
-  ;; Perhaps does the wrong thing for displaced arrays.
-  ;; This will never affect me.
-  `((lambda (arrayoid body)
-      (unless (typep arrayoid 'vector)
-        (setf arrayoid (sb-kernel:%array-data-vector arrayoid)))
-      (sb-sys:with-pinned-objects (arrayoid)
-        (funcall body (sb-sys:vector-sap arrayoid))))
-    ,array
-    (lambda (,name) ,@body)))
-
-#-SBCL
-(defmacro with-array-pointer ((name vector) &body body)
-  (error "~A is not supported - implement with-array-pointer"
-         (lisp-implementation-type)))
-
 
 ;;; Pixel helpers
 
@@ -267,6 +243,4 @@ to the right (e.g. (extend-shift #b101 3) => #b101111"
   (and
    (p<<= upper-left point)
    (p<<= point lower-right)))
-
-
 

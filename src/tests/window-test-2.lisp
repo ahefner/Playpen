@@ -114,7 +114,7 @@
     ;;(gl:generate-mipmap-ext :texture-2d)
     ;;(playpen::update-mipmap-region *pattern-array* 0 0 128 128 0 0)
     #+NIL
-    (with-array-pointer (pointer (playpen::a8-to-rgba32 glyph #xFFFFFF))
+    (cffi:with-pointer-to-vector-data (pointer (playpen::a8-to-rgba32 glyph #xFFFFFF))
       (gl:tex-sub-image-2d :texture-2d 0 target-x target-y (array-dimension glyph 1) (array-dimension glyph 0) :rgba :unsigned-byte pointer)))
   (gl:check-error))
 

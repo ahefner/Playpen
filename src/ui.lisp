@@ -182,15 +182,6 @@
         (event-loop-hook *window*))
       (dispatch-event next-event))))
 
-;;; New attempt at event loop. Runs one frame when animating, or waits
-;;; if nothing is happening.
-#+NIL
-(defun event-loop-step (persist-p)
-  (let ((frame-start-time (usectime))
-        (frame-interval 16666)
-        (next-frame-start (+ frame-start-time frame-interval)))
-    ))
-
 (defun inner-event-loop (&key persist)
   (assert (eql *event-loop-running* :this-thread))
   (loop while (continue-event-loop-p persist)
@@ -238,7 +229,7 @@
     (:this-thread
      (pwin:create-window :class class :window-initargs initargs))))
 
-;;; Glue these events to the spatial protocols..
+;;;; A little glue between events and spatial protocol functions:
 
 (defmethod coordinate ((event pwin::event-coordinate-trait))
   (complex
@@ -267,6 +258,9 @@
 
 ;;;; Caching of image assets. Assets are automatically reloaded when
 ;;;; they are modified on disk.
+
+;;;; I imagine using inotify for this eventually, but for now it just
+;;;; checks the file-write-date.
 
 (defstruct cached-asset
   truename

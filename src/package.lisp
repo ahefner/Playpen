@@ -11,7 +11,6 @@
 
    #:keywordify #:suffix
    #:clamp #:birand #:extend-shift
-   #:with-array-pointer
 
    #:orf #:minf #:maxf
    #:2pi
