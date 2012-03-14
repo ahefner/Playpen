@@ -1,6 +1,6 @@
 /*****************************************************************
 
-  I/O utilities.
+  I/O utilities, and some Unix wrappers.
 
   Copyright (c) 2012, Andy Hefner <ahefner@gmail.com>
 
@@ -31,7 +31,11 @@
 #include <stdlib.h>
 #include <stdint.h>
 #include <string.h>
+#include <unistd.h>
 
+/* Returns the first 16 bytes of a file. Used for determining file
+ * format (you'd be surprised how often image files get saved with the
+ * wrong extension..) */
 int
 read_file_signature (const char *filename, uint8_t sig[16])
 {

@@ -18,7 +18,6 @@
                              (:file "generics")
                              (:file "images")
                              (:file "image-loader")
-                             (:file "imaging")
                              (:file "graphics")
                              (:file "ui")
                              (:module tests
