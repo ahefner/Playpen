@@ -76,7 +76,7 @@
     (setf target (+ current d)))
   (values current target))
 
-(defun exponential-approach (current target
+(defun expt-approach (current target
                              &key
                              mod
                              (rate 0.01)
@@ -98,7 +98,7 @@
 (defmethod handle-event ((window animation-test-1) (event expose))
   (with-graphics-context (window)
     (with-slots (positions) window
-      (clear-screen #(0.06 0.20 0.06 1.0))
+      (clear-screen #(0.06 0.10 0.06 0.6))
       (use-graphic-projection)
       (use-texture (image-asset "pepper.png"))
       (gl:begin :quads)

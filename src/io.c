@@ -32,6 +32,7 @@
 #include <stdint.h>
 #include <string.h>
 #include <unistd.h>
+#include <errno.h>
 
 /* Returns the first 16 bytes of a file. Used for determining file
  * format (you'd be surprised how often image files get saved with the
@@ -51,5 +52,8 @@ read_file_signature (const char *filename, uint8_t sig[16])
     }
 }
 
+#define constant(name) int const_##name (void) { return name; }
 
+//constant(EBADF);
+//constant(EAGAIN);
 

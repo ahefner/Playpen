@@ -76,6 +76,12 @@
               resource
               context))))
 
+(defun remove-resource (context resource &optional (key resource))
+  (assert (eql context (slot-value resource 'context)))
+  (with-slots (resource-map) context
+    (remhash key resource-map)
+    (setf (slot-value resource 'context) nil)))
+
 ;;;; Display/init
 
 (cffi:defcstruct display
@@ -85,24 +91,28 @@
 
 (cffi:defcvar ("dpy_info" *display*) display)
 
-(defun display-width (display-ptr)
+(defun display-width (&optional (display-ptr *display*))
   (cffi:foreign-slot-value display-ptr 'display 'width))
 
-(defun display-height (display-ptr)
+(defun display-height (&optional (display-ptr *display*))
   (cffi:foreign-slot-value display-ptr 'display 'height))
 
-(defun display-supports-compositing-p (display-ptr)
+(defun display-supports-compositing-p (&optional (display-ptr *display*))
   (not (zerop (cffi:foreign-slot-value display-ptr 'display 'alphap))))
 
 (cffi:defcfun (%initialize-display "pwin_init")
     (:wrapper :int)
   (name :string))
 
+(defvar *display-initialized* nil)
+
 (defun initialize-display (&optional (display-spec (asdf:getenv "DISPLAY")))
-  (unless (zerop (%initialize-display display-spec))
-    (error "Unable to initialize display ~A" display-spec))
-  (unless *global-opengl-context*
-    (setf *global-opengl-context* (make-instance 'opengl-context))))
+  (unless *display-initialized*
+    (unless (zerop (%initialize-display display-spec))
+      (error "Unable to initialize display ~A" display-spec))
+    (unless *global-opengl-context*
+      (setf *global-opengl-context* (make-instance 'opengl-context)))
+    (setf *display-initialized* t)))
 
 ;;;; Windowing
 
@@ -114,7 +124,9 @@
   Lisp only deals in pointers to these structures, so it's okay to
   simply omit it. |#)
 
-(defvar *window-map* (make-hash-table :test 'equal))
+(defvar *window-map*
+  (make-hash-table :test 'equal
+                   :synchronized t))
 
 (defun all-windows ()
   (loop for window being the hash-values of *window-map* collect window))
@@ -163,10 +175,9 @@
   ((window-pointer
     :reader window->pointer
     :initarg :window-pointer)
-   (graphics-context
-    :reader graphics-context
-    :initarg :graphics-context
-    :initform nil)
+   (alive-p
+    :reader window-alive-p
+    :initform t)
    (initial-width
     :reader initial-width
     :initarg :initial-width)
@@ -189,7 +200,14 @@
     :initform nil)
    (button-state
     :reader window-button-state
-    :initform 0))
+    :initform 0)
+   (lock
+    :reader window-lock
+    :initform (bordeaux-threads:make-lock "window lock"))
+   (graphics-context
+    :reader graphics-context
+    :initarg :graphics-context
+    :initform nil))
 
   (:default-initargs
    :initial-width 700
@@ -218,8 +236,8 @@
          (%win (%create-window
                 (or type (window-type window))
                 (or application-name (application-name window))
-                (or width (initial-width window))
-                (or height (initial-height window)))))
+                (round (or width (initial-width window)))
+                (round (or height (initial-height window))))))
     (setf (slot-value window 'window-pointer) %win
           (gethash (cffi:pointer-address %win) *window-map*) window)
     (set-title window (or title
@@ -233,7 +251,7 @@
 (defun end-paint (window)
   (%end-paint   (window->pointer window)))
 
-(defun window-alive-p (window)
+(defun %window-alive-p (window)
   (check-type window window)
   (if (gethash (cffi:pointer-address
                 (window->pointer window))
@@ -242,6 +260,7 @@
       nil))
 
 (defun window-composited-p (window)
+  (declare (ignore window))
   (display-supports-compositing-p *display*))
 
 (defun set-title   (window title)
@@ -249,11 +268,13 @@
 
 (defun destroy-window (window)
   (check-type window window)
-  (when (window-alive-p window)
-    (remhash (cffi:pointer-address
-              (window->pointer window))
-             *window-map*)
-    (%destroy-window (window->pointer window))))
+  (bordeaux-threads:with-lock-held ((window-lock window))
+    (setf (slot-value window 'alive-p) nil)
+    (when (%window-alive-p window)
+      (remhash (cffi:pointer-address
+                (window->pointer window))
+               *window-map*)
+      (%destroy-window (window->pointer window)))))
 
 (defun destroy-all-windows ()
   (dolist (window (all-windows))
@@ -502,7 +523,14 @@
 
 ;;;; Misc functions
 
-(defun display-dpi () 72)               ; Fixme, handle in backend.
+;;;; I feel like I should make this work, but I'm skeptical there's
+;;;; anything useful to do with it outside the world of iOS devices,
+;;;; where this code will never run anyway.  Personally, if my
+;;;; monitor's DPI happened to be 30% higher, I'd probably just move
+;;;; it that much closer to me.
+
+(defun display-dpi (&optional (display-ptr *display*))
+  72)
 
 ;;; FIXME: Probably misguided.
 #+unix (cffi:defcfun (getproc "glXGetProcAddress") :pointer (name :string))

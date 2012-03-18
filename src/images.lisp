@@ -236,7 +236,7 @@
   (image-matrix-data image))
 
 
-;;;; 
+;;;; Random pixel munging stuff
 
 ;;; TODO: Rewrite using loop-rectangle, pixel format macros
 

@@ -25,13 +25,6 @@
       (animate))
     (setf (utime window) now)))
 
-#+NIL
-(defmethod initialize-instance :after ((clock clock) &rest initargs)
-  (declare (ignore initargs))
-  (with-slots (second-hand minute-hand hour-hand) clock
-    (setf (values second-hand minute-hand hour-hand)
-          (clock-angles))))
-
 (defun draw-clock-hand (image angle)
   (use-texture image)
   (gl:push-matrix)
@@ -56,9 +49,9 @@
     (draw-clock-face (image-asset "clock-face.png"))
     (with-slots (second-hand minute-hand hour-hand) this
       (multiple-value-bind (ns nm nh) (clock-angles)
-        (setf second-hand (exponential-approach second-hand ns :rate 1e-6 :mod 360 :threshold 0.3)
-              minute-hand (exponential-approach minute-hand nm :rate 0.1  :mod 360 :threshold 0.3)
-              hour-hand   (exponential-approach hour-hand   nh :rate 0.1  :mod 360 :threshold 0.3)))
+        (setf second-hand (expt-approach second-hand ns :rate 1e-6 :mod 360 :threshold 0.3)
+              minute-hand (expt-approach minute-hand nm :rate 0.1  :mod 360 :threshold 0.3)
+              hour-hand   (expt-approach hour-hand   nh :rate 0.1  :mod 360 :threshold 0.3)))
       (draw-clock-hand (image-asset "clock-hand-1.png") hour-hand)
       (draw-clock-hand (image-asset "clock-hand-2.png") minute-hand)
       (draw-clock-hand (image-asset "clock-hand-3.png") second-hand))

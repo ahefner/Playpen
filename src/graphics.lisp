@@ -208,9 +208,9 @@
 (defun opengl-image-formats (image-format)
   (let ((pf (pixel-format image-format)))
     (cond
-      ((eql pf +rgb+)   (values 3 :rgb   :unsigned-byte))
-      ((eql pf +rgba+)  (values 4 :rgba  :unsigned-byte))
-      ((eql pf +alpha+) (values 1 :alpha :unsigned-byte)))))
+      ((eql pf +rgb+)   (values :rgb8  :rgb   :unsigned-byte 4))
+      ((eql pf +rgba+)  (values :rgba8 :rgba  :unsigned-byte 4))
+      ((eql pf +alpha+) (values 1      :alpha :unsigned-byte 1)))))
 
 (defun allocate-texture (&key key mipmap)
   (assert-gl-context)
@@ -222,7 +222,9 @@
     (attach-resource *gl-context* texture (or key texture))
     (values texture)))
 
-(defun texture-load (texture image)
+(defvar *total-pixels* 0)
+
+(defun texture-load-basic (texture image)
   (assert-ownership texture)
   (gl:bind-texture :texture-2d (texture-id texture))
   (gl:check-error)
@@ -240,15 +242,23 @@
       (gl:tex-image-2d :texture-2d
                        0
                        internal
-                       (width (dimensions image))
-                       (height (dimensions image))
+                       (width image)
+                       (height image)
                        0
                        format
                        type
                        pointer)
+      (incf *total-pixels* (* (width image) (height image)))
+      (print (list :total-pixels *total-pixels*))
       (gl:check-error)
       (gl:pixel-store :unpack-row-length 0)
       (gl:check-error))))
+
+(defun texture-load (texture image)
+  ;; FIXME: Make sure PBOs supported, fall back to basic glTexImage2D
+  ;; path if not.
+  #+NIL (texture-load-basic texture image)
+  (texture-load-pbo texture image))
 
 (defun allocate-and-upload (image &key mipmap)
   (let ((texture (allocate-texture :key image :mipmap mipmap)))
@@ -283,17 +293,76 @@
        (gl:tex-parameter :texture-2d :texture-wrap-t :clamp)
        (gl:check-error)))))
 
-#+NIL
-(defun texture-push-rectangle (texture-id source-image c0 c1)
-  (asserted-gl-context)
-  (let ((size (- c1 c0)))
-    (multiple-value-bind (internal format type)
-        (opengl-image-formats source)
-      (gl:bind-texture :texture-2d texture-id)
-      )))
+;;;; Buffers
 
+(defclass opengl-buffer (opengl-resource)
+  ((buffer-id :initarg :buffer-id
+              :initform nil
+              :reader buffer-id)))
 
+(defun allocate-buffer ()
+  (let ((buffer (make-instance 'opengl-buffer
+                               :buffer-id (first (gl:gen-buffers 1)))))
+    (gl:check-error)
+    (attach-resource *gl-context* buffer)
+    (values buffer)))
 
+;;; I'm still feeling out how to best use PBOs..
 
+;; (defvar *test-buffer* nil)
+;; (defvar *test-mem* nil)
 
+;; (defun buffer-test ()
+;;   (unless *test-buffer*
+;;     (setf *test-buffer* (allocate-buffer)
+;;           *test-mem* #+NIL (cffi:foreign-alloc :uint32 :initial-element #xc0 :count #x10000)
+;;           (gl:alloc-gl-array :uint32 #x10000))
+;;     (gl:bind-buffer :pixel-unpack-buffer (buffer-id *test-buffer*))
+;;     (gl:check-error)
+;;     (gl:buffer-data :pixel-unpack-buffer :static-draw *test-mem* :size (* 4 256 256))
+;;     (gl:bind-buffer :pixel-unpack-buffer 0)
+;;     (gl:check-error)
+;;     (print :success!)))
 
+;;; FIXME: not tested on non-RGBA textures, possibly has other issues.
+(defun texture-load-pbo (texture image)
+  (assert-ownership texture)
+  (gl:bind-texture :texture-2d (texture-id texture))
+    (gl:check-error)
+  (let ((pbo (allocate-buffer)))
+    (gl:bind-buffer :pixel-unpack-buffer (buffer-id pbo))
+    (gl:check-error)
+    (multiple-value-bind (internal format type bytes-per-pixel)
+        (opengl-image-formats image)
+      (cffi:with-pointer-to-vector-data (pointer (data-array image))
+        (gl:pixel-store :unpack-row-length (image-pitch image))
+
+        (cond
+        ((mipmap-p texture)
+         (gl:tex-parameter :texture-2d :generate-mipmap :true)
+         (gl:hint :generate-mipmap-hint :nicest))
+        ((not (mipmap-p texture))
+         (gl:tex-parameter :texture-2d :generate-mipmap :false)))
+        (gl:check-error)
+        (%gl:buffer-data :pixel-unpack-buffer
+                         (* bytes-per-pixel
+                            (image-pitch image)
+                            (height image))
+                         pointer
+                         :static-draw)
+        (gl:check-error)
+        (gl:tex-image-2d :texture-2d
+                         0
+                         internal
+                         (width image)
+                         (height image)
+                         0
+                         format
+                         type
+                         (cffi:null-pointer))
+        (gl:check-error)
+        (gl:pixel-store :unpack-row-length 0)
+        (gl:check-error)
+        (gl:bind-buffer :pixel-unpack-buffer 0)
+        (gl:delete-buffers (list (buffer-id pbo)))
+        (gl:check-error)))))

@@ -40,6 +40,9 @@
     (complex (width object)
              (height object))))
 
+(defgeneric area (object)
+  (:method (object) (* (width object) (height object))))
+
 (defgeneric aspect-ratio (object)
   (:method (object)
     (float (/ (width object)

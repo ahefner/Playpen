@@ -4,7 +4,9 @@
   :author "Andy Hefner <ahefner@gmail.com>"
   :license "MIT-style license"
   :depends-on (:cffi
+               :osicat
                :bordeaux-threads
+               :sb-concurrency
                :cl-opengl :cl-glu
                :skippy
                ;; :zpb-ttf :cl-vectors :cl-paths-ttf :cl-aa
@@ -13,9 +15,11 @@
                 :serial t
                 :components ((:file "package")
                              (:file "util")
+                             (:file "io")
                              (:file "syms")
                              (:file "windowing")
                              (:file "generics")
+                             (:file "concurrency")
                              (:file "images")
                              (:file "image-loader")
                              (:file "graphics")

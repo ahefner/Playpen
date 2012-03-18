@@ -61,30 +61,68 @@
 (defparameter *event-loop-break* nil
   "Escape hatch to interrupt a running event loop.")
 
-(defun dispatch-event (event)
+(defun call-with-*window* (window continuation)
+  (let ((*window* window))
+    (restart-case (funcall continuation)
+      (destroy-window ()
+        :report "Destroy this window."
+        (destroy-window window)))))
+
+(defun dispatch-event-by-type (event)
   (etypecase event
     ;; Ignore timeout events.
     (timeout)
     ;; Window events go through HANDLE-EVENT.
     (window-event
-     (let ((*window* (event-window event)))
-      (handle-event *window* event)))
+     (call-with-*window*
+      (event-window event)
+      (lambda () (handle-event *window* event))))
     ;; IO events are handled separately.
     (io-ready
      (dispatch-io-event event))))
 
-;;; This is an obvious hack. This should be a mailbox or something,
-;;; but the framework for unifying that with the windowing event loop
-;;; isn't here yet.
+(defun dispatch-event (event)
+  (tagbody top
+   (restart-case (dispatch-event-by-type event)
+     (ignore-event ()
+       :report "Ignore this event."
+       (return-from dispatch-event))
+     (retry-event-handler ()
+       :report "Retry event handler"
+       (go top)))))
+
+(defvar *event-loop-pipe-output* nil)
+(defvar *event-loop-pipe-input* nil)
+
+(defun wake-event-loop ()
+  (assert (not (null *event-loop-pipe-input*)))
+  (fd-write-byte *event-loop-pipe-input* 33))
 
 ;;; The purpose of this to support launching applications from outside
 ;;; the main thread (since the application init needs to happen in the
-;;; UI thread).
-(defvar *event-loop-queue* nil)
+;;; UI thread). It's also a handy place to hang any events originating
+;;; from outside the windowing layer's get-event function which must
+;;; be propagated through the event loop. Implementation is a little
+;;; hacky.
+
+;;; Don't enqueue things on this directly! Do this:
+;;;   (send :event <message>)
+
+;;; This ensures the event loop is woken up, by writing to a pipe
+;;; which the IO multiplexer monitors.
+
+;;; Somewhat arbitrarily use SBCL's queues for this, because they're
+;;; more efficient than mine.
+
+(defvar *event-loop-queue*
+  (sb-concurrency:make-queue :name "Synthetic event queue"))
 
 (defun process-event-loop-queue ()
-  (loop while *event-loop-queue*
-        do (funcall (pop *event-loop-queue*))))
+  (dolist (value (drain :event))
+    (etypecase value
+      (null (return))
+      (function (funcall value))
+      (event (dispatch-event value)))))
 
 (defun force-repaint (window)
   (when (window-alive-p window)
@@ -165,8 +203,10 @@
       ;; Give each window a chance to check for deadlines, etc.  Run
       ;; it before dispatching the next event, for the sake of
       ;; deadlines being processed before the next event.
-      (dolist (*window* (all-windows))
-        (event-loop-hook *window*))
+      (dolist (window (all-windows))
+        (call-with-*window*
+         window
+         (lambda () (event-loop-hook *window*))))
       (dispatch-event next-event))))
 
 (defvar *event-loop-running* nil)
@@ -180,13 +220,27 @@
         (force-output *trace-output*)
         (event-loop-step persist)))
 
-(defun run-event-loop (&key persist)
-  (initialize-display)
+(defun event-loop-init ()
+
+  #+NIL
+  (push (lambda ()
+          (print (list :dynamic-usage (round (sb-kernel:dynamic-usage) 1024)
+                       :bytes-consed-between-gcs (round (sb-ext:bytes-consed-between-gcs) 1024)
+                       :gc-run-time sb-ext:*gc-run-time*)))
+        sb-ext:*after-gc-hooks*)
+
   (assert (not *event-loop-running*))
+  (initialize-display)
+  (unless *event-loop-pipe-output*
+    (multiple-value-setq (*event-loop-pipe-output*
+                          *event-loop-pipe-input*)
+      (osicat-posix:pipe))))
+
+(defun run-event-loop (&key persist)
+  (event-loop-init)
   (setf *event-loop-running* :running)
   (unwind-protect
-       (let ((*event-loop-running* :this-thread)
-             (*next-event* nil))
+       (let ((*event-loop-running* :this-thread))
          (catch 'event-loop-exit
            (inner-event-loop :persist persist)))
     ;; Cleanup.
@@ -196,40 +250,55 @@
 ;;;; IO Dispatch
 
 (defun dispatch-io-event (io)
+  (declare (ignore io))
   ;;; This is just a joke of a test:
-  (print (list :dispatch-io (check-fd :read 0)))
+  ;;(print (list :dispatch-io (check-fd :read 0)))
+  #+NIL
   (when (check-fd :read 0)
-    (let ((buf (make-array 1 :element-type '(unsigned-byte 8))))
-      (cffi:with-pointer-to-vector-data (ptr buf)
-        (print (list :read (sb-unix:unix-read 0 ptr 1)
-                     :buffer buf))))))
+    (print (list :stdin (fd-read-byte 0))))
+  ;; Read wakeup notify
+  (when (check-fd :read *event-loop-pipe-output*)
+    (fd-read-byte *event-loop-pipe-output*)
+    #+NIL
+    (print (list :event (fd-read-byte *event-loop-pipe-output*)))))
 
 (defun prepare-watched-descriptors ()
-  ;;; Test code:
-  (watch-fd :read 0))
+  ;;(watch-fd :read 0)                    ; Silly test code.
+  (watch-fd :read *event-loop-pipe-output*))
 
-;;; FIXME: Should be more strict about ensuring the UI always runs in
-;;; the same thread. We can get away with almost anything on X, but
-;;; lesser systems aren't so forgiving.
+;;;; FIXME: Need to make sure event loop always runs in the same thread.
 
 (defun run-app (class &rest initargs)
   "Start an application, by instantiating 'class' with the given initargs."
   (ecase *event-loop-running*
     ;; Case 1: Event loop not running. Initialize and run until app(s) exit.
     ((nil)
-     (initialize-display)
+     (event-loop-init)
      (pwin:create-window :class class :window-initargs initargs)
      (run-event-loop :persist nil))
 
     ;; Case 2: UI running in another thread. Queue the application start.
     (:running
      (find-class class)
-     (push (lambda () (apply 'run-app class initargs))
-           *event-loop-queue*))
+     (send :event (lambda () (apply 'run-app class initargs))))
 
     ;; Case 3: In the UI thread, can start app immediately.
     (:this-thread
      (pwin:create-window :class class :window-initargs initargs))))
+
+(defun wait-for-event-loop ()
+  "Wait until event loop is initialized and running."
+  ;; Kludge:
+  (loop repeat 60 until *event-loop-running* do (sleep 0.05)
+        finally (unless *event-loop-running*
+                  (error "Where's the event loop?"))))
+
+(defun start-event-loop ()
+  "Start a persistent event loop in a background thread"
+  (assert (not *event-loop-running*))
+  (bordeaux-threads:make-thread
+   (lambda () (run-event-loop :persist t)))
+  (wait-for-event-loop))
 
 ;;;; A little glue between events and spatial protocol functions:
 
@@ -341,7 +410,59 @@
         (cerror "Try again" "Image asset ~A not found" name)
         (go retry))))))
 
+;;;; -------------------------------------------------------------------
+;;;; Implement channels protocol for objects managed by the event loop.
+
+;;;; The event loop is a channel named by the symbol :EVENT
+
+;;;; FIXME: Don't use SBCL's queue for this. Use a bounded queue.
+
+(defmethod send ((channel (eql :event)) message)
+  (sb-concurrency:enqueue message *event-loop-queue*)
+  (wake-event-loop))
+
+(defmethod channel-open-p ((channel (eql :event)))
+  t)                                    ; Close enough.
+
+(defmethod receive ((channel (eql :event)))
+  (sb-concurrency:dequeue *event-loop-queue*))
+
+;;; FIXME: While you're replacing the use of SBCL's queue, do this
+;;; right too, so someone flooding the queue doesn't starve the
+;;; program. Read the amount in the queue once, return at most the
+;;; number of items at that instant (ignoring additional items added
+;;; while you were unloading the queue).
+(defmethod drain ((channel (eql :event)))
+  (loop with result = '()
+        do (multiple-value-bind (value nonempty)
+               (sb-concurrency:dequeue *event-loop-queue*)
+             (if nonempty
+                 (push value result)
+                 (loop-finish)))
+        finally (return (nreverse result))))
 
 
+;;;; Windows are channels accepting window-event objects only. These
+;;;; get delivered by the event loop.
 
+(defmethod send ((window window) message)
+  (bordeaux-threads:with-lock-held ((window-lock window))
+    (%ensure-channel-open window)
+    (send :event message)))
+
+(defmethod receive ((window window))
+  (error "You can't call RECEIVE on a window. Window events are delivered by the event queue."))
+
+(defmethod drain ((window window))
+  (error "You can't do that."))
+
+(defmethod channel-open-p ((window window))
+   (window-alive-p window))
+
+;;;; Object stream for delivering data to windows as events.
+
+(defstruct window-event-channel window constructor lock)
+
+(defmethod channel-open-p ((channel window-event-channel))
+  (window-alive-p (window-event-channel-window channel)))
 

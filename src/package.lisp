@@ -7,6 +7,8 @@
   (:use #:cl)
   (:export
 
+   ;;; General utilities:
+
    #:textual-condition
 
    #:keywordify #:suffix
@@ -31,7 +33,13 @@
 
    #:p<<=
    #:p>>=
-   #:rectangle-contains-p))
+   #:rectangle-contains-p
+
+   ;;; OS interface and utilities:
+   #:fd-write-byte
+   #:fd-read-byte
+
+   ))
 
 (defpackage #:pwin
   (:use #:cl #:putil)
@@ -45,6 +53,7 @@
    #:opengl-resource
    #:assert-ownership
    #:attach-resource
+   #:remove-resource
 
    #:initialize-display
    #:*display*
@@ -59,6 +68,7 @@
    #:window-user-pointer
    #:window-pointer-position
    #:window-button-state
+   #:window-lock
    #:graphics-context
 
    #:initial-width
@@ -133,6 +143,11 @@
   (:export
 
    ;; Re-export event/windowing symbols from PWIN package:
+   #:display-width
+   #:display-height
+   #:display-supports-compositing-p
+   #:display-dpi
+
    #:event
    #:window-event
    #:motion
@@ -182,6 +197,7 @@
    #:window-height
    #:window-pointer-position
    #:window-button-state
+   #:window-lock
    #:window-composited-p
 
    #:initial-width
@@ -195,13 +211,19 @@
 
    ;; (end of PWIN symbols)
 
-
    ;;; Misc. generic functions
    #:width
    #:height
    #:dimensions
+   #:area
    #:aspect-ratio
    #:coordinate
+
+   ;;; Concurrency
+   #:send
+   #:receive
+   #:drain
+   #:channel-open-p
 
    ;;; Pixel format protocol
    #:pixel-format-element-type
@@ -272,12 +294,16 @@
 
    ;;; Images
    #:read-jpeg-file
-   #:read-gif-file
-   #:read-png-file
-
    #:jpeg-error
    #:jpeg-decoder-error
    #:jpeg-warning
+   #:jlo-mode-fastest
+   #:jlo-mode-high-quality
+   #:jlo-set-downscale
+
+   #:read-gif-file
+
+   #:read-png-file
    #:png-error
 
    #:read-image-file
@@ -304,6 +330,7 @@
    #:wakeup-time
    #:event-loop-hook
    #:run-app
+   #:start-event-loop
 
    #:builtin-asset-path
    #:image-asset
