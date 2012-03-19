@@ -41,7 +41,10 @@
              (height object))))
 
 (defgeneric area (object)
-  (:method (object) (* (width object) (height object))))
+  (:method (object)
+    (* (width object) (height object)))
+  (:method ((number complex))
+    (* (realpart number) (imagpart number))))
 
 (defgeneric aspect-ratio (object)
   (:method (object)

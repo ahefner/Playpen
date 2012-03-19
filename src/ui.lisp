@@ -417,15 +417,16 @@
 
 ;;;; FIXME: Don't use SBCL's queue for this. Use a bounded queue.
 
-(defmethod send ((channel (eql :event)) message)
-  (sb-concurrency:enqueue message *event-loop-queue*)
-  (wake-event-loop))
+(defmethod transact ((type (eql :write)) (channel (eql :event)) proceed fail)
+  (declare (ignore fail))
+  (funcall
+   proceed
+   (lambda (message)
+     (sb-concurrency:enqueue message *event-loop-queue*)
+     (wake-event-loop))))
 
 (defmethod channel-open-p ((channel (eql :event)))
-  t)                                    ; Close enough.
-
-(defmethod receive ((channel (eql :event)))
-  (sb-concurrency:dequeue *event-loop-queue*))
+  t)                                    ; Close enough for now.
 
 ;;; FIXME: While you're replacing the use of SBCL's queue, do this
 ;;; right too, so someone flooding the queue doesn't starve the
@@ -444,17 +445,12 @@
 
 ;;;; Windows are channels accepting window-event objects only. These
 ;;;; get delivered by the event loop.
-
-(defmethod send ((window window) message)
+(defmethod transact ((type (eql :write)) (window window) proceed fail)
   (bordeaux-threads:with-lock-held ((window-lock window))
-    (%ensure-channel-open window)
-    (send :event message)))
-
-(defmethod receive ((window window))
-  (error "You can't call RECEIVE on a window. Window events are delivered by the event queue."))
-
-(defmethod drain ((window window))
-  (error "You can't do that."))
+    (if (channel-open-p window)
+        (funcall proceed
+         (lambda (message) (send :event message)))
+        (funcall fail (make-instance 'channel-closed :channel window)))))
 
 (defmethod channel-open-p ((window window))
    (window-alive-p window))

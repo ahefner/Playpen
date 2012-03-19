@@ -222,6 +222,10 @@
    ;;; Concurrency
    #:send
    #:receive
+   #:channel-error
+   #:channel-empty
+   #:channel-closed
+   #:transact
    #:drain
    #:channel-open-p
 
