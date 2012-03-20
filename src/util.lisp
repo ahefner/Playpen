@@ -53,6 +53,10 @@
       (max x y)
       (or x y)))
 
+(defun scalec (s c)
+  (complex (* (realpart s) (realpart c))
+           (* (imagpart s) (imagpart c))))
+
 (defconstant 2pi (* 2 pi))
 
 (defun extend-shift (value count)

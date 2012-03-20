@@ -40,27 +40,38 @@
     (setf start-time (pwin:usectime)
           current-time start-time)))
 
+(defvar *in-repaint* nil)
+
 (defun animate (&optional (object *window*))
-  (with-slots (animating last-time current-time) object
-    (unless animating
-      (shiftf last-time current-time (pwin:usectime))
-      (setf animating t))))
+  (with-slots (last-time current-time) object
+    (unless (animating object)
+      (unless *in-repaint*
+        ;; If we did this at the start of repaint, we'd nearly zero
+        ;; out the delta-t every single frame.  The original intent is
+        ;; just to make sure that if a window has been sleeping and a
+        ;; non-expose event handler triggers an animation, we don't
+        ;; get an excessively long delta-t that causes everything to
+        ;; jump.
+        (shiftf last-time current-time (pwin:usectime)))
+      (setf (animating object) t))))
 
 (defun relative-time (&optional (object *window*))
-  (with-slots (current-time start-time animating) object
-    (setf animating t)
+  (with-slots (current-time start-time) object
+    (setf (animating object) t)
     (* 1f-6 (- current-time start-time))))
 
 (defun delta-t (&optional (object *window*))
-  (with-slots (current-time last-time animating) object
-    (setf animating t)
+  (with-slots (current-time last-time) object
+    (setf (animating object) t)
     (* 1f-6 (- current-time last-time))))
 
 (defmethod handle-event :around ((a time-consumer) (during expose))
-  (with-slots (current-time last-time animating) a
+  (with-slots (current-time last-time) a
     (shiftf last-time current-time (pwin:usectime))
-    (setf animating nil)
-    (call-next-method)))
+    (setf (animating a) nil)
+    (let ((*in-repaint* t))
+      (call-next-method))
+    (finish-output)))
 
 (defun calculate-exponential-approach (current target rate dt)
   (+ target

@@ -18,6 +18,7 @@
    #:2pi
    #:min-or
    #:max-or
+   #:scalec
 
    #:deftuple
 

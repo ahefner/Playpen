@@ -28,13 +28,14 @@
    (image :initarg :image :accessor image)))
 
 (defun random-photo-coordinate (window)
-  (* (cis (random (* 2 pi)))
-     (random
-      (+ 64.0
-         (/ (sqrt (/ (contents-area window)
-                     (aspect-ratio window)))
-            pi)))
-     (aspect-ratio window)))
+  (scalec
+   (complex (aspect-ratio window) 1.0)
+   (* (cis (random (* 2 pi)))
+      (random
+       (+ 64.0
+          (/ (sqrt (/ (contents-area window)
+                      (aspect-ratio window)))
+             pi))))))
 
 (defun shuffle-photos (w)
   (with-slots (objects) w
@@ -79,12 +80,12 @@
 
 (defmethod handle-event ((window photos) (event new-photo-event))
   (push (photo-of event) (new-objects-of window))
-  (animate))                            ; Fixme (elsewhere..)
+  (animate))
 
 (defparameter *zoom-step* 1.2)
 
 (defmethod handle-event ((window photos) (event button-press))
-  (with-slots (zoom-target goto objects animating) window
+  (with-slots (zoom-target goto objects) window
     (case (event-button event)
       (1 (setf goto (coordinate event)))
       (3 (shuffle-photos window))
@@ -115,8 +116,8 @@
                goto nil))
        (setf zoom (expt-approach zoom zoom-target)
              offset (expt-approach offset
-                                          (or offset-target offset)
-                                          :threshold 1))
+                                   (or offset-target offset)
+                                   :threshold 1))
 
        ;; Experiment: rate limit the introduction of new objects:
        (loop repeat 1
@@ -126,7 +127,7 @@
              (setf (target object) (random-photo-coordinate window))
              (animate)
              (use-texture (image object))
-             (setf objects (nconc objects (list object))))
+             (push object objects))
 
        ;; Print the time it took to load all the images from disk.
        (when (and (eql (finished-loading window) t)
