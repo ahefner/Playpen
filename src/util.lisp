@@ -75,11 +75,7 @@ to the right (e.g. (extend-shift #b101 3) => #b101111"
              (= (extend-shift #b101 2) #b10111)
              (= (extend-shift #b100 2) #b10000)))
 
-(defmacro orf (place value)
-  ;; FIXME: Can multiply evaluate forms inside of the place
-  ;; expression.
-  `(or ,place (setf ,place ,value)))
-
+(define-modify-macro orf (x) or)
 (define-modify-macro minf (other) min)
 (define-modify-macro maxf (other) max)
 
