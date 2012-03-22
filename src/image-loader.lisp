@@ -261,10 +261,6 @@
                (cffi:with-foreign-slots ((width height channels)
                                          png-reader
                                          png-reader)
-                 (print
-                  (list :width width
-                        :height height
-                        :channels channels))
                  (cond
                    ((or (zerop width) (zerop height))
                     (error "Zero pixel PNG image? This probably shouldn't happen."))

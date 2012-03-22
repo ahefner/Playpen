@@ -12,6 +12,7 @@
    #:textual-condition
 
    #:keywordify #:suffix
+   #:non-null
    #:clamp #:birand #:extend-shift
 
    #:orf #:minf #:maxf
@@ -55,6 +56,8 @@
    #:assert-ownership
    #:attach-resource
    #:remove-resource
+   #:context-attributes
+   #:context-attribute
 
    #:initialize-display
    #:*display*
@@ -144,6 +147,7 @@
   (:export
 
    ;; Re-export event/windowing symbols from PWIN package:
+   #:*gl-context*
    #:display-width
    #:display-height
    #:display-supports-compositing-p

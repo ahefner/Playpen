@@ -37,7 +37,17 @@
 (defun keywordify (string-designator)
   (values (intern (string string-designator) :keyword)))
 
-(declaim (inline clamp extend-shift))
+(declaim (inline clamp extend-shift non-null max-or min-or))
+
+(defun non-null (value)
+  (assert (not (null value)))
+  value)
+
+(define-compiler-macro non-null (expr)
+  `((lambda (value)
+      (or value
+          (error ,(format nil "Must be non-NULL: ~A" expr))))
+    ,expr))
 
 (defun clamp (lower value upper) (max lower (min value upper)))
 

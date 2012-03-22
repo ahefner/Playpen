@@ -85,7 +85,7 @@
   (tagbody top
    (restart-case (dispatch-event-by-type event)
      (ignore-event ()
-       :report "Ignore this event."
+       :report (lambda (s) (format s "Ignore this event (~A)." event))
        (return-from dispatch-event))
      (retry-event-handler ()
        :report "Retry event handler"
@@ -240,7 +240,8 @@
   (event-loop-init)
   (setf *event-loop-running* :running)
   (unwind-protect
-       (let ((*event-loop-running* :this-thread))
+       (let ((*event-loop-running* :this-thread)
+             (*print-circle* t))
          (catch 'event-loop-exit
            (inner-event-loop :persist persist)))
     ;; Cleanup.
@@ -296,8 +297,17 @@
 (defun start-event-loop ()
   "Start a persistent event loop in a background thread"
   (assert (not *event-loop-running*))
-  (bordeaux-threads:make-thread
-   (lambda () (run-event-loop :persist t)))
+  (let ((stream *terminal-io*))
+    (bordeaux-threads:make-thread
+     (lambda ()
+       (let ((*standard-input* stream)
+             (*standard-output* stream)
+             (*trace-output* stream)
+             (*error-output* stream)
+             (*query-io* stream)
+             (*terminal-io* stream)
+             (*debug-io* stream))
+         (run-event-loop :persist t)))))
   (wait-for-event-loop))
 
 ;;;; A little glue between events and spatial protocol functions:

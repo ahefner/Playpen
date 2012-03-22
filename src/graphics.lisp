@@ -67,7 +67,7 @@
             1.0)
   (gl:check-error))
 
-(defun use-graphic-projection (&key (square t))
+(defun use-graphic-projection ()
   (assert (not (null *window*)))
   (reset-transforms)
   (let ((aspect  (/ (width *window*)
@@ -87,10 +87,13 @@
   (%draw-rect* -1 -1 1 1)
   (gl:end))
 
+(defvar *cache-surface*)
+
 (defun call-with-graphics-context (window continuation)
   (begin-paint window)
   (unwind-protect
        (let ((*gl-context* (graphics-context window))
+             (*cache-surface* nil)
              (*window* window))
 
          ;; Blending mode for textures with premultiplied alpha:
@@ -119,7 +122,7 @@
 
 ;;;; Little utilities
 
-(defun clear-screen (&optional (color #(0.0 0.0 0.0 0.0)))
+(defun clear-screen (&optional (color #(0.0 0.0 0.0 0.8)))
   (gl:clear-color (elt color 0)
                   (elt color 1)
                   (elt color 2)
@@ -248,7 +251,10 @@
                        format
                        type
                        pointer)
-      (incf *total-pixels* (* (width image) (height image)))
+      (setf (dimensions-of texture) (complex
+                                     (width image)
+                                     (height image)))
+      (incf *total-pixels* (area texture))
       (print (list :total-pixels *total-pixels*))
       (gl:check-error)
       (gl:pixel-store :unpack-row-length 0)
@@ -268,7 +274,16 @@
 (defun use-texture (image &key (mipmap t))
   (assert-gl-context)
   (gl:enable :texture-2d)
-  (let ((texture (gethash image (resource-map *gl-context*))))
+  (let (texture)
+
+    (typecase image
+      (null (error "NIL is not a legal image designator."))
+      ;; Texture objects designate themselves.
+      (opengl-texture
+       (shiftf texture image nil))
+      ;; Otherwise look it up in the map.
+      (t (setf texture (gethash image (resource-map *gl-context*)))))
+
     (cond
       ;; Bind existing texture object.
       (texture
@@ -336,13 +351,12 @@
         (opengl-image-formats image)
       (cffi:with-pointer-to-vector-data (pointer (data-array image))
         (gl:pixel-store :unpack-row-length (image-pitch image))
-
         (cond
-        ((mipmap-p texture)
-         (gl:tex-parameter :texture-2d :generate-mipmap :true)
-         (gl:hint :generate-mipmap-hint :nicest))
-        ((not (mipmap-p texture))
-         (gl:tex-parameter :texture-2d :generate-mipmap :false)))
+          ((mipmap-p texture)
+           (gl:tex-parameter :texture-2d :generate-mipmap :true)
+           (gl:hint :generate-mipmap-hint :nicest))
+          ((not (mipmap-p texture))
+           (gl:tex-parameter :texture-2d :generate-mipmap :false)))
         (gl:check-error)
         (%gl:buffer-data :pixel-unpack-buffer
                          (* bytes-per-pixel
@@ -360,9 +374,294 @@
                          format
                          type
                          (cffi:null-pointer))
+        (setf (dimensions-of texture) (complex
+                                       (width image)
+                                       (height image)))
+        (incf *total-pixels* (area texture))
         (gl:check-error)
         (gl:pixel-store :unpack-row-length 0)
         (gl:check-error)
         (gl:bind-buffer :pixel-unpack-buffer 0)
         (gl:delete-buffers (list (buffer-id pbo)))
         (gl:check-error)))))
+
+;;;; Cache surface
+
+(defstruct sctree
+  (parent nil :type (or null sctree))
+  (x0 0 :type texcoord)
+  (x1 0 :type texcoord)
+  (y0 0 :type texcoord)
+  (y1 0 :type texcoord)
+  (state :empty :type (member :empty :partial :full))
+  (children nil :type list)
+  (allocant nil))
+
+(defun sctree-width (sctree)
+  (- (sctree-x1 sctree) (sctree-x0 sctree)))
+
+(defun sctree-height (sctree)
+  (- (sctree-y1 sctree) (sctree-y0 sctree)))
+
+(defmethod width  ((this sctree)) (sctree-width this))
+(defmethod height ((this sctree)) (sctree-height this))
+
+(defun sctree-allocate (tree width height)
+  (and (>= (sctree-width tree)  width)
+       (>= (sctree-height tree) height)
+       (ecase (sctree-state tree)
+         (:full nil)
+         (:partial
+          (loop for child in (sctree-children tree)
+                as result = (sctree-allocate child width height)
+                when result return result))
+         (:empty
+          (assert (null (sctree-children tree)))
+          (sctree-allocate-in-leaf tree width height)))))
+
+(defun sctree-partition (tree x y)
+  "Partition tree into 2, 4, or no subtrees, along the vertical line
+   'x' and the horizontal line 'y', which may be null or a texcoord.
+   Returns the upper-left sector, or the tree itself if x and y are
+   both nil."
+  (declare (type (or null texcoord) x y))
+  (assert (eql :empty (sctree-state tree)))
+  (assert (null (sctree-children tree)))
+  (assert (or (null x) (> x (sctree-x0 tree))))
+  (assert (or (null y) (> y (sctree-y0 tree))))
+  (assert (or (null x) (<= x (sctree-x1 tree))))
+  (assert (or (null y) (<= y (sctree-y1 tree))))
+  (if (not (or x y))              ; No partition? Allocate whole node.
+      tree
+      (let ((inner-child (make-sctree :parent tree
+                                      :x0 (sctree-x0 tree)
+                                      :x1 (or x (sctree-x1 tree))
+                                      :y0 (sctree-y0 tree)
+                                      :y1 (or y (sctree-y1 tree)))))
+        ;; The order in which we push these determines the typical
+        ;; direction of allocation within the texture.
+        (push inner-child (sctree-children tree))
+        (when (and x y)
+          (push (make-sctree :parent tree
+                             :x0 x :y0 y
+                             :x1 (sctree-x1 tree)
+                             :y1 (sctree-y1 tree))
+                (sctree-children tree)))
+        (when x
+          (push (make-sctree :parent tree
+                             :x0 x
+                             :x1 (sctree-x1 tree)
+                             :y0 (sctree-y0 tree)
+                             :y1 (or y (sctree-y1 tree)))
+                (sctree-children tree)))
+        (when y
+          (push (make-sctree :parent tree
+                             :x0 (sctree-x0 tree)
+                             :x1 (or x (sctree-x1 tree))
+                             :y0 y
+                             :y1 (sctree-y1 tree))
+                (sctree-children tree)))
+        inner-child)))
+
+(defun sctree-recompute-state (tree)
+  (sctree-propagate-state-change
+   (sctree-parent tree)
+   (sctree-state tree)
+   (setf (sctree-state tree)
+         (cond
+           ((every (lambda (x) (eql :full (sctree-state x)))
+                   (sctree-children tree))
+            :full)
+           ((every (lambda (x) (eql :empty (sctree-state x)))
+                   (sctree-children tree))
+            :empty)
+           (t :partial)))))
+
+(defun sctree-propagate-state-change (tree child-old-state child-new-state)
+  (unless (or (null tree) (eql child-old-state child-new-state))
+    (let ((parent-state (sctree-state tree)))
+      (ecase child-new-state
+        (:partial
+         (setf (sctree-state tree) :partial)
+         (sctree-propagate-state-change (sctree-parent tree) parent-state :partial))
+        ((:empty :full)
+         (sctree-recompute-state tree))))))
+
+(defun sctree-change-state (tree new-state)
+  (sctree-propagate-state-change
+   (sctree-parent tree)
+   (shiftf (sctree-state tree) new-state)
+   new-state))
+
+(defun sctree-allocate-in-leaf (tree width height)
+  "Partition and allocate a portion of a leaf node"
+  (declare (type texcoord width height))
+  (assert (eql :empty (sctree-state tree)))
+  (assert (null (sctree-children tree)))
+  (assert (>= (sctree-width tree) width))
+  (assert (>= (sctree-height tree) height))
+  (let* ((lw (sctree-width tree))
+         (lh (sctree-height tree))
+         (slack-x (- lw width))
+         (slack-y (- lh height)))
+    (cond
+      ;; If the leaf fits, allocate it.
+      ((and (= lw width) (= lh height))
+       (sctree-change-state tree :full)
+       (values tree))
+      ;; Split..
+      ((> slack-x slack-y)
+       (sctree-allocate-in-leaf
+        (sctree-partition tree (+ (sctree-x0 tree) width) nil)
+        width
+        height))
+      (t
+       (sctree-allocate-in-leaf
+        (sctree-partition tree nil (+ (sctree-y0 tree) height))
+        width
+        height)))))
+
+(defclass cache-surface (opengl-texture)
+  ((tree :accessor cache-surface-tree
+         :initform nil)
+   (map  :reader cache-surface-map
+         :initarg :map
+         :initform (make-hash-table))))
+
+(defun allocant-key (object)
+  (etypecase object
+    (image-vector object)
+    (image-matrix object)))
+
+(defmethod width  ((a cache-surface)) (width  (cache-surface-tree a)))
+(defmethod height ((a cache-surface)) (height (cache-surface-tree a)))
+
+(defun make-cache-surface (context &key (width 1024) (height 1024))
+  (let ((cache
+         (make-instance 'cache-surface
+                        :texture-id (first (gl:gen-textures 1)))))
+    (attach-resource context cache :cache)
+    (%cs-init-texture cache width height)
+
+    (values cache)))
+
+(defun %cs-init-texture (cache width height)
+  (with-slots (tree) cache
+    (assert (null tree))
+    (setf tree (make-sctree :x1 width :y1 height))
+    (gl:bind-texture :texture-2d (texture-id cache))
+    (gl:check-error)
+    (gl:tex-image-2d :texture-2d
+                     0
+                     :rgba8
+                     (sctree-width tree)
+                     (sctree-height tree)
+                     0
+                     :rgba
+                     :unsigned-byte
+                     (cffi:null-pointer))
+    (gl:check-error)
+    (setf (dimensions-of cache) (complex width height))
+    ;; Hopefully I don't regret enabling filtering. I recall having
+    ;; trouble in G1 on my old R300 when I wanted pixel-precise drawing
+    ;; of UI elements, such that I was forced to turn it off. Hopefully
+    ;; it was a bug in my code (or the open source driver).
+    (gl:tex-parameter :texture-2d :texture-min-filter :linear)
+    (gl:tex-parameter :texture-2d :texture-mag-filter :linear)
+
+    (gl:matrix-mode :texture)
+    (gl:load-identity)
+    (gl:scale (/ 1.0d0 (width cache))
+              (/ 1.0d0 (height cache))
+              1.0d0)
+    (gl:tex-parameter :texture-2d :texture-border-color #(0.0 0.0 0.0 0.0))
+    (gl:tex-env :texture-env :texture-env-mode :modulate)
+    (gl:tex-parameter :texture-2d :texture-wrap-s :clamp)
+    (gl:tex-parameter :texture-2d :texture-wrap-t :clamp)
+    (gl:pixel-store :unpack-row-length 0)
+    (gl:check-error)))
+
+(defun %cs-evict-tree (cache tree)
+  (labels ((purge-allocants (tree)
+             (when (sctree-allocant tree)
+               (remhash (allocant-key (sctree-allocant tree))
+                        (cache-surface-map cache)))
+             (dolist (child (sctree-children tree))
+               (purge-allocants child))))
+    (purge-allocants tree)
+    (setf (sctree-children tree) nil)
+    (sctree-change-state tree :empty)
+    (assert (eql :empty (sctree-state tree)))))
+
+(defun %cs-find-evictee (tree width height)
+  (assert (<= width (sctree-width tree)))
+  (assert (<= height (sctree-height tree)))
+  (setf (sctree-children tree) (alexandria:shuffle (sctree-children tree)))
+  ;; TODO: Randomly evict whole node?
+  (loop for child in (sctree-children tree)
+        when (and (<= width (sctree-width child))
+                  (<= height (sctree-height child)))
+        return (%cs-find-evictee child width height)
+        finally (return tree)))
+
+(defun %cs-evict-to-fit (cache width height)
+  (let ((victim
+         (non-null
+          (%cs-find-evictee (cache-surface-tree cache) width height))))
+    (%cs-evict-tree cache victim)
+    (assert (eql :empty (sctree-state victim)))
+
+    (values victim)))
+
+(defun %cs-evict-and-allocate (cache width height)
+  (non-null
+   (sctree-allocate
+    (non-null (%cs-evict-to-fit cache width height))
+    width height)))
+
+(defun %cs-allocate-leaf (cache width height)
+  (or (sctree-allocate (cache-surface-tree cache) width height)
+      (%cs-evict-and-allocate cache width height)))
+
+(defun cache-surface-allocate-image (cache image)
+  (multiple-value-bind (internal format type)
+      (opengl-image-formats image)
+    (declare (ignore internal))
+    ;; You *could* have multiple atlases in different formats, but it
+    ;; seems counterproductive for my purposes.
+    (assert (eql format :rgba))
+    (let ((leaf (%cs-allocate-leaf cache (width image) (height image))))
+      (non-null leaf)
+      (assert (= (dimensions leaf) (dimensions image)))
+      (setf (sctree-allocant leaf) image
+            (gethash (allocant-key image) (cache-surface-map cache)) leaf)
+      (gl:pixel-store :unpack-row-length (image-pitch image))
+      ;; FIXME sometime: use PBOs. Particularly beneficial for
+      ;; background-loaded stuff, if we start the pixel transfer from
+      ;; an event handler outside of repaint.
+      (cffi:with-pointer-to-vector-data (pointer (data-array image))
+        (gl:tex-sub-image-2d :texture-2d
+                             0
+                             (sctree-x0 leaf)
+                             (sctree-y0 leaf)
+                             (width image)
+                             (height image)
+                             format
+                             type
+                             pointer))
+      (gl:check-error)
+      (gl:pixel-store :unpack-row-length 0)
+      (gl:check-error)
+
+      (values leaf))))
+
+;;;
+
+(defun get-cache-surface ()
+  (orf *cache-surface*
+       (orf (gethash 'cache-surface (context-attributes *gl-context*))
+            (make-cache-surface *gl-context*))))
+
+(defun cached-image (image)
+  (orf (gethash (allocant-key image) (cache-surface-map (get-cache-surface)))
+       (cache-surface-allocate-image (get-cache-surface) image)))

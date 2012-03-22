@@ -36,6 +36,7 @@
                  :accessor animating)))
 
 (defmethod initialize-instance :after ((a time-consumer) &rest args)
+  (declare (ignore args))
   (with-slots (start-time current-time) a
     (setf start-time (pwin:usectime)
           current-time start-time)))

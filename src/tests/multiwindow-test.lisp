@@ -67,8 +67,7 @@
       (gl:begin :quads)
       (playpen::%draw-rect (- coordinate (complex (* r (aspect-ratio image)) r))
                            (+ coordinate (complex (* r (aspect-ratio image)) r)))
-      (gl:end)
-      )))
+      (gl:end))))
 
 (defmethod handle-event ((window multiwindow-test) (event motion))
   (with-slots (coordinate) window

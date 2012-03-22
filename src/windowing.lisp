@@ -41,8 +41,12 @@
   ((alive-p :initform t
             :reader context-alive-p)
    (resource-map :initform (make-hash-table)
-                 :reader resource-map)))
+                 :reader resource-map)
+   (attributes :reader context-attributes
+               :initform (make-hash-table :test 'equal))))
 
+;;; This one is bound dynamically by WITH-GRAPHICS-CONTEXT. Don't use
+;;; the other one.
 (defvar *gl-context*)
 
 (defun assert-gl-context ()
@@ -51,6 +55,10 @@
 (defun asserted-gl-context ()
   (assert-gl-context)
   *gl-context*)
+
+(defun context-attribute (key &optional (context *gl-context*))
+  (assert (not (null context)))
+  (gethash key (context-attributes context)))
 
 
 (defclass opengl-resource ()

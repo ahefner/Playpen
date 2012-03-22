@@ -119,7 +119,7 @@
                                    (or offset-target offset)
                                    :threshold 1))
 
-       ;; Experiment: rate limit the introduction of new objects:
+       ;; Experiment: rate-limit the introduction of new objects:
        (loop repeat 1
              as object = (pop (new-objects-of window))
              while object do

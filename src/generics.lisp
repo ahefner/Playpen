@@ -1,4 +1,4 @@
-;;;; Generic functions and protocols?
+;;;; Generic functions / protocols
 
 ;;;; Copyright (c) 2012, Andy Hefner <ahefner@gmail.com>
 
@@ -51,14 +51,16 @@
     (float (/ (width object)
               (height object)))))
 
-(defclass dimension-trait ()
-  ((dimensions :reader dimensions :initarg :dimensions)))
-
-(defmethod width  ((x dimension-trait)) (realpart x))
-(defmethod height ((x dimension-trait)) (imagpart x))
-
 (defmethod width  ((x complex)) (realpart x))
 (defmethod height ((x complex)) (imagpart x))
+
+(defclass dimension-trait ()
+  ((dimensions :accessor dimensions-of :initarg :dimensions)))
+
+(defmethod dimensions ((this dimension-trait)) (dimensions-of this))
+
+(defmethod width  ((x dimension-trait)) (realpart (dimensions-of x)))
+(defmethod height ((x dimension-trait)) (imagpart (dimensions-of x)))
 
 (defgeneric coordinate (object))
 
