@@ -37,6 +37,7 @@
 #include <unistd.h>
 #include <sys/select.h>
 #include <sys/time.h>
+#include <errno.h>
 
 #include <X11/X.h>
 #include <X11/Xatom.h>
@@ -639,7 +640,7 @@ get_event_inner (struct event *event_out, int blocking, long long deadline)
             int num_fds  = select(maxfd+1, RDSET, WRSET, EXSET, NULL);
 
             if (num_fds <= 0) {
-                perror("select");
+                if (errno != EINTR) perror("select");
                 XSync(display,False);
                 event_out->type = ev_Timeout;
                 return;
