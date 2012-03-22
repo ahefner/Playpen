@@ -5,7 +5,7 @@
   (dolist (file files)
     (format t "~&~80A " (human-string file))
     (finish-output)
-    (handler-case (print (read-jpeg file :configurator configurator))
+    (handler-case (print (read-jpeg-file file :configurator configurator))
       (jpeg-decoder-error (c)
         (format t "~&ERROR: ~A~%" c))
       (jpeg-decoder-warning (c)

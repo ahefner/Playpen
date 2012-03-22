@@ -54,7 +54,6 @@
       (ignore-errors
         (send app
               (make-instance 'new-photo-event
-                             :window app
                              :photo
                              (make-instance 'photo
                                             :coordinate 0

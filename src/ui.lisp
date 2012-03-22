@@ -295,19 +295,19 @@
                   (error "Where's the event loop?"))))
 
 (defun start-event-loop ()
-  "Start a persistent event loop in a background thread"
-  (assert (not *event-loop-running*))
-  (let ((stream *terminal-io*))
-    (bordeaux-threads:make-thread
-     (lambda ()
-       (let ((*standard-input* stream)
-             (*standard-output* stream)
-             (*trace-output* stream)
-             (*error-output* stream)
-             (*query-io* stream)
-             (*terminal-io* stream)
-             (*debug-io* stream))
-         (run-event-loop :persist t)))))
+  "Start a persistent event loop in a background thread."
+  (unless *event-loop-running*
+    (let ((stream *terminal-io*))
+      (bordeaux-threads:make-thread
+       (lambda ()
+         (let ((*standard-input* stream)
+               (*standard-output* stream)
+               (*trace-output* stream)
+               (*error-output* stream)
+               (*query-io* stream)
+               (*terminal-io* stream)
+               (*debug-io* stream))
+           (run-event-loop :persist t))))))
   (wait-for-event-loop))
 
 ;;;; A little glue between events and spatial protocol functions:
@@ -452,14 +452,20 @@
                  (loop-finish)))
         finally (return (nreverse result))))
 
-
 ;;;; Windows are channels accepting window-event objects only. These
 ;;;; get delivered by the event loop.
 (defmethod transact ((type (eql :write)) (window window) proceed fail)
   (bordeaux-threads:with-lock-held ((window-lock window))
     (if (channel-open-p window)
         (funcall proceed
-         (lambda (message) (send :event message)))
+         (lambda (message)
+           (etypecase message
+             (window-event
+              ;; I'm a nice guy, so I'll set the destination window for you.
+              (unless (slot-boundp message 'pwin:window)
+                (setf (slot-value message 'pwin:window) window))
+              (assert (eql window (event-window message)))
+              (send :event message)))))
         (funcall fail (make-instance 'channel-closed :channel window)))))
 
 (defmethod channel-open-p ((window window))
@@ -472,3 +478,80 @@
 (defmethod channel-open-p ((channel window-event-channel))
   (window-alive-p (window-event-channel-window channel)))
 
+
+;;;; -------------------------------------------------------------------
+;;;; Animation
+
+(defclass time-consumer ()
+  ((start-time)
+   (current-time :initform nil)
+   (last-time    :initform nil)
+   (animating    :initform t
+                 :accessor animating)))
+
+(defmethod initialize-instance :after ((a time-consumer) &rest args)
+  (declare (ignore args))
+  (with-slots (start-time current-time) a
+    (setf start-time (pwin:usectime)
+          current-time start-time)))
+
+(defvar *in-repaint* nil)
+
+(defun animate (&optional (object *window*))
+  (with-slots (last-time current-time) object
+    (unless (animating object)
+      (unless *in-repaint*
+        ;; If we did this at the start of repaint, we'd nearly zero
+        ;; out the delta-t every single frame.  The original intent is
+        ;; just to make sure that if a window has been sleeping and a
+        ;; non-expose event handler triggers an animation, we don't
+        ;; get an excessively long delta-t that causes everything to
+        ;; jump.
+        (shiftf last-time current-time (pwin:usectime)))
+      (setf (animating object) t))))
+
+(defun relative-time (&optional (object *window*))
+  (with-slots (current-time start-time) object
+    (setf (animating object) t)
+    (* 1f-6 (- current-time start-time))))
+
+(defun delta-t (&optional (object *window*))
+  (with-slots (current-time last-time) object
+    (setf (animating object) t)
+    (* 1f-6 (- current-time last-time))))
+
+(defmethod handle-event :around ((a time-consumer) (during expose))
+  (with-slots (current-time last-time) a
+    (shiftf last-time current-time (pwin:usectime))
+    (setf (animating a) nil)
+    (let ((*in-repaint* t))
+      (call-next-method))
+    (finish-output)))
+
+(defun calculate-exponential-approach (current target rate dt)
+  (+ target
+     (* (- current target)
+        (expt rate dt))))
+
+(defun unwrap-mod (current target mod)
+  (setf current (mod current mod)
+        target  (mod target mod))
+  (let ((d (mod (- target current) mod)))
+    (when (> d (* mod 0.5))
+      (setf d (- d mod)))
+    (setf target (+ current d)))
+  (values current target))
+
+(defun expt-approach (current target
+                             &key
+                             mod
+                             (rate 0.01)
+                             (snap nil)
+                             (threshold (abs (* target 0.01))))
+  (setf current (or current target))
+  (when mod
+    (multiple-value-setq (current target)
+      (unwrap-mod current target mod)))
+  (if (<= (abs (- target current)) threshold)
+      (if snap target current)
+      (calculate-exponential-approach current target rate (delta-t))))

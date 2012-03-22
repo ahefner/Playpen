@@ -344,11 +344,15 @@
    #:builtin-asset-path
    #:image-asset
 
+   ;; Animation
+   #:time-consumer                      ; temporary; should include by default.
+   #:animate
+   #:relative-time
+   #:delta-t
+   #:expt-approach
+
    ;;; Fonts and text
    ;#:text-face
-
-
-
 ))
 
 
