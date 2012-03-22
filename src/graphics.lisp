@@ -608,39 +608,41 @@
   (or (sctree-allocate (cache-surface-tree cache) width height)
       (%cs-evict-and-allocate cache width height)))
 
-(defun cache-surface-allocate-image (cache image)
+(defun %cs-upload-to-leaf (leaf image)
   (multiple-value-bind (internal format type)
       (opengl-image-formats image)
     (declare (ignore internal))
-    ;; You *could* have multiple atlases in different formats, but it
-    ;; seems counterproductive for my purposes.
-    (assert (eql format :rgba))
-    (let ((leaf (%cs-allocate-leaf cache (width image) (height image))))
-      (non-null leaf)
-      (assert (= (dimensions leaf) (dimensions image)))
-      (setf (sctree-allocant leaf) image
-            (gethash (allocant-key image) (cache-surface-map cache)) leaf)
-      (gl:pixel-store :unpack-row-length (image-pitch image))
-      ;; FIXME sometime: use PBOs. Particularly beneficial for
-      ;; background-loaded stuff, if we start the pixel transfer from
-      ;; an event handler outside of repaint.
-      (cffi:with-pointer-to-vector-data (pointer (data-array image))
-        (gl:tex-sub-image-2d :texture-2d
-                             0
-                             (sctree-x0 leaf)
-                             (sctree-y0 leaf)
-                             (width image)
-                             (height image)
-                             format
-                             type
-                             pointer))
-      (gl:check-error)
-      (gl:pixel-store :unpack-row-length 0)
-      (gl:check-error)
+    (assert (eql format :rgba))         ; FIXME..
+    (gl:pixel-store :unpack-row-length (image-pitch image))
+    ;; FIXME sometime maybe: use PBOs. Particularly beneficial for
+    ;; background-loaded stuff, if we start the pixel transfer from
+    ;; an event handler outside of repaint.
+    (cffi:with-pointer-to-vector-data (pointer (data-array image))
+      (gl:tex-sub-image-2d :texture-2d
+                           0
+                           (sctree-x0 leaf)
+                           (sctree-y0 leaf)
+                           (width image)
+                           (height image)
+                           format
+                           type
+                           pointer))
+    (gl:check-error)
+    (gl:pixel-store :unpack-row-length 0)
+    (gl:check-error)))
 
-      (values leaf))))
+(defun cache-surface-allocate-image (cache image)
+  ;; You *could* have multiple atlases in different formats, but it
+  ;; seems counterproductive for my purposes.
+  (let ((leaf (%cs-allocate-leaf cache (width image) (height image))))
+    (non-null leaf)
+    (assert (= (dimensions leaf) (dimensions image)))
+    (setf (sctree-allocant leaf) image
+          (gethash (allocant-key image) (cache-surface-map cache)) leaf)
+    (%cs-upload-to-leaf leaf image)
+    (values leaf)))
 
-;;;
+;;; ----------------------------------------------------------------------
 
 (defun get-cache-surface ()
   (orf *cache-surface*
