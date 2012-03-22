@@ -40,6 +40,7 @@
 #include <errno.h>
 
 #include <X11/X.h>
+#include <X11/Xresource.h>
 #include <X11/Xatom.h>
 
 #include "windowing.h"
@@ -113,7 +114,6 @@ pwin_init (char *display_name)
     if (cfgs && num_cfgs) {
         int i;
         int depth = -1, tmp;
-        GLXContext context;
         XRenderPictFormat *pictFormat;
 
         // TODO: Use of an alpha visual should be an application choice.
@@ -241,8 +241,6 @@ create_window (enum window_type type, char *app_name,
 void
 scribble_window (struct window *window)
 {
-    int i;
-
     window_begin_paint(window);
 
     glClearColor (0.0, 0.0, 0.0, 0.3);
@@ -302,7 +300,9 @@ void
 window_set_title (struct window *window, char *new_title)
 {
     XChangeProperty(display, window->window, XA_WM_NAME, XA_STRING, 8,
-                    PropModeReplace, new_title, strlen(new_title));
+                    PropModeReplace,
+                    (unsigned char *)new_title,
+                    strlen(new_title));
 }
 
 static unsigned
@@ -390,7 +390,6 @@ translate_event (XEvent *xev, struct event *event_out)
     struct window *win = lookup_window(xev->xany.window);
     char buf[16];
     KeySym sym;
-    unsigned newstate;
 
     memset(event_out, 0, sizeof(*event_out));
 
@@ -572,7 +571,10 @@ check_fd (int setidx, int fd)
 {
     if ((setidx >= 0) && (setidx <= 2) && (fd >= 0)) {
         return (FD_ISSET(fd,&fdsets[setidx])? 1 : 0);
-    } else fprintf(stderr, "check_fd(%i,%i) is sad.\n", setidx, fd);
+    } else {
+        fprintf(stderr, "check_fd(%i,%i) is sad.\n", setidx, fd);
+        return 0;
+    }
 }
 
 static int
@@ -602,7 +604,6 @@ nonblock_get_x_event (struct event *event_out)
 static void
 get_event_inner (struct event *event_out, int blocking, long long deadline)
 {
-    XEvent ev;
     int i, tmp;
     int xfd = ConnectionNumber(display), maxfd = xfd;
     long long now, delta;

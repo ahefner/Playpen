@@ -106,7 +106,7 @@ open_and_decode_png_file (const char *filename)
     fread(header, 1, sizeof(header), in);
     if (png_sig_cmp(header, 0, sizeof(header))) {
         fclose(in);
-        return;
+        return NULL;
     }
 
     pr = calloc(1, sizeof(*pr));

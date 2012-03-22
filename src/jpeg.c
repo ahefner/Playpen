@@ -157,7 +157,11 @@ int jlo_init_from_filename (struct jpeg_decoder_state *st, char *filename)
 
     jpeg_create_decompress(&st->cinfo);
     st->cinfo_initialized = 1;
-    if (setjmp(st->jpeg_error_trampoline)) goto fatal_with_message;
+    if (setjmp(st->jpeg_error_trampoline)) {
+        st->errmgr.output_message((struct jpeg_common_struct *)&st->cinfo);
+        st->state = error;
+        return 0;
+    }
 
     st->cinfo.err = jpeg_std_error(&st->errmgr);
     st->errmgr.error_exit = handle_error_exit;
@@ -172,14 +176,7 @@ int jlo_init_from_filename (struct jpeg_decoder_state *st, char *filename)
     jlo_mode_fastest(st);
     jlo_set_downscale(st,1);
 
-success:
-    return;
-
-fatal_with_message:
-    st->errmgr.output_message((struct jpeg_common_struct *)&st->cinfo);
-fatal:
-    st->state = error;
-    return;
+    return 1;
 }
 
 void jlo_start_decompress (struct jpeg_decoder_state *st)
@@ -208,7 +205,7 @@ void jlo_start_decompress (struct jpeg_decoder_state *st)
         goto fatal;
     }
 
-success:
+    /* success: */
     return;
 
 fatal_with_message:
