@@ -76,17 +76,6 @@
               (if (< aspect 1) aspect 1)
               1.0)))
 
-;;; I thought I needed to do this, but I'm pretty sure I don't. In
-;;; case it turns out I do, I'll leave it around for a while.
-(defun fix-alpha-for-compositing ()
-  (reset-transforms)
-  (gl:enable :blend)
-  (gl:blend-func-separate :zero :dst-alpha :zero :one)
-  (gl:color 1.0 1.0 1.0 1.0)
-  (gl:begin :quads)
-  (%draw-rect* -1 -1 1 1)
-  (gl:end))
-
 (defvar *cache-surface*)
 
 (defun call-with-graphics-context (window continuation)
@@ -109,11 +98,7 @@
          (gl:load-identity)
          (use-pixel-projection)
          (funcall continuation)
-         (gl:check-error)
-
-         #+(or)
-         (when (display-supports-compositing-p *display*)
-           (fix-alpha-for-compositing)))
+         (gl:check-error))
     ;; Cleanup:
     (end-paint window)))
 
