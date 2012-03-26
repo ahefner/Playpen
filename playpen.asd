@@ -23,6 +23,7 @@
                              (:file "images")
                              (:file "image-loader")
                              (:file "graphics")
+                             (:file "freetype")
                              (:file "ui")
                              (:module tests
                               :serial t
@@ -32,6 +33,8 @@
                                (:file "animation-test-1")
                                (:file "photos")
                                (:file "clock")
+                               (:file "cstest-tmp-2")
+                               (:file "tmp-text-1")
                                ;; These two are probably bit-rotted:
                                #+NIL (:file "window-test-1")
                                #+NIL (:file "window-test-2")))))))

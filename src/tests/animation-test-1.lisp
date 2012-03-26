@@ -36,9 +36,11 @@
 (defmethod handle-event ((window animation-test-1) (event expose))
   (with-graphics-context (window)
     (with-slots (positions) window
-      (clear-screen #(0.06 0.10 0.06 0.6))
+      ;(clear-screen #(0.06 0.10 0.06 0.6))
+      (clear-screen #(0 0 0 0))
       (use-graphic-projection)
       (use-texture (image-asset "pepper.png"))
+      (gl:color 1 1 1 1)
       (gl:begin :quads)
       (loop with time = (relative-time)
             for i from 0 below 64

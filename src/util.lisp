@@ -254,3 +254,30 @@ to the right (e.g. (extend-shift #b101 3) => #b101111"
    (p<<= upper-left point)
    (p<<= point lower-right)))
 
+;;;; C idiocy
+
+;;; cffi-grovel? I've heard of such things..
+#-CFFI-FEATURES:X86-64
+(cffi:defctype size_t :unsigned-int)
+#+CFFI-FEATURES:X86-64
+(cffi:defctype size_t :uint64)
+
+#-CFFI-FEATURES:X86-64
+(cffi:defctype off_t :int)
+#+CFFI-FEATURES:X86-64
+(cffi:defctype off_t :int64)
+
+(cffi:defcfun malloc :pointer
+  (size size_t))
+
+(cffi:defcfun free :void
+  (ptr :pointer))
+
+(cffi:defcfun calloc :pointer
+  (nmemb size_t)
+  (size size_t))
+
+(cffi:defcfun memset :void
+  (s :pointer)
+  (c :int)
+  (n size_t))

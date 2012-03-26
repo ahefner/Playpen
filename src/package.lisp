@@ -37,6 +37,15 @@
    #:p>>=
    #:rectangle-contains-p
 
+   ;;; C stuff
+
+   #:size_t
+   #:off_t
+   #:malloc
+   #:free
+   #:calloc
+   #:memset
+
    ;;; OS interface and utilities:
    #:fd-write-byte
    #:fd-read-byte

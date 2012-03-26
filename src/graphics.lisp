@@ -89,7 +89,6 @@
          (gl:enable :blend)
          (gl:blend-func :one :one-minus-src-alpha)
 
-         (gl:matrix-mode :modelview)
          (gl:disable :texture-2d)
          (gl:disable :depth-test)
          (gl:disable :cull-face)
@@ -97,6 +96,7 @@
 
          (gl:load-identity)
          (use-pixel-projection)
+         (gl:matrix-mode :modelview)
          (funcall continuation)
          (gl:check-error))
     ;; Cleanup:
@@ -256,9 +256,16 @@
     (texture-load texture image)
     texture))
 
+
 (defun use-texture (image &key (mipmap t))
   (assert-gl-context)
   (gl:enable :texture-2d)
+  (gl:tex-env :texture-env :texture-env-mode :modulate)
+
+  (gl:matrix-mode :texture)
+  (gl:load-identity)
+  (gl:matrix-mode :modelview)
+
   (let (texture)
 
     (typecase image
@@ -274,8 +281,8 @@
       (texture
        (gl:bind-texture :texture-2d (texture-id texture))
        (gl:check-error))
-       ;; Allocate and upload to new texture, which will leave
-       ;; the :texture-2d target bound accordingly.
+      ;; Allocate and upload to new texture, which will leave
+      ;; the :texture-2d target bound accordingly.
       ((null texture)
        (setf (gethash image (resource-map *gl-context*))
              (allocate-and-upload image :mipmap mipmap))
@@ -288,10 +295,10 @@
           (gl:tex-parameter :texture-2d :texture-mag-filter :linear)))
 
        (gl:tex-parameter :texture-2d :texture-border-color #(0.0 0.0 0.0 0.0))
-       (gl:tex-env :texture-env :texture-env-mode :modulate)
        (gl:tex-parameter :texture-2d :texture-wrap-s :clamp)
-       (gl:tex-parameter :texture-2d :texture-wrap-t :clamp)
-       (gl:check-error)))))
+       (gl:tex-parameter :texture-2d :texture-wrap-t :clamp)))
+
+    (gl:check-error)))
 
 ;;;; Buffers
 
@@ -380,6 +387,9 @@
   (y1 0 :type texcoord)
   (state :empty :type (member :empty :partial :full))
   (children nil :type list)
+  ;; Pixels of padding within each side of coordinate bounds.
+  (pad 0 :type texcoord)
+  ;; Object allocated in this node, if a :full leaf. Otherwise, NIL.
   (allocant nil))
 
 (defun sctree-width (sctree)
@@ -485,6 +495,7 @@
   (assert (null (sctree-children tree)))
   (assert (>= (sctree-width tree) width))
   (assert (>= (sctree-height tree) height))
+  (setf (sctree-pad tree) 0)
   (let* ((lw (sctree-width tree))
          (lh (sctree-height tree))
          (slack-x (- lw width))
@@ -527,7 +538,6 @@
                         :texture-id (first (gl:gen-textures 1)))))
     (attach-resource context cache :cache)
     (%cs-init-texture cache width height)
-
     (values cache)))
 
 (defun %cs-init-texture (cache width height)
@@ -554,7 +564,7 @@
     (gl:tex-parameter :texture-2d :texture-min-filter :linear)
     (gl:tex-parameter :texture-2d :texture-mag-filter :linear)
 
-    (gl:matrix-mode :texture)
+    (gl:matrix-mode :texture)           ; FIXME CAN'T TOUCH THIS
     (gl:load-identity)
     (gl:scale (/ 1.0d0 (width cache))
               (/ 1.0d0 (height cache))
@@ -566,6 +576,7 @@
     (gl:pixel-store :unpack-row-length 0)
     (gl:check-error)))
 
+;;; Remove allocant of leaf, or all children of tree.
 (defun %cs-evict-tree (cache tree)
   (labels ((purge-allocants (tree)
              (when (sctree-allocant tree)
@@ -608,39 +619,90 @@
   (or (sctree-allocate (cache-surface-tree cache) width height)
       (%cs-evict-and-allocate cache width height)))
 
+#+NIL                                   ; fuck it. later.
+(defun texture-clear-rectangle (x0 y0 x1 y1)
+  (let ((pbo (allocate-buffer)))
+    (gl:bind-buffer :pixel-unpack-buffer (buffer-id pbo))
+    (gl:check-error)
+    (%gl:buffer-data )
+    (gl:bind-buffer :pixel-unpack-buffer 0)
+    (gl:delete-buffers (list (buffer-id pbo)))
+    (gl:check-error)))
+
+(defun upload-subimage (pointer x y width height format type &optional (pitch width))
+  (gl:pixel-store :unpack-row-length width)
+  ;; FIXME sometime maybe: use PBOs. Particularly beneficial for
+  ;; background-loaded stuff, if we start the pixel transfer from
+  ;; an event handler outside of repaint.
+  (gl:tex-sub-image-2d :texture-2d
+                       0
+                       x
+                       y
+                       width
+                       height
+                       format type
+                       pointer)
+  (gl:check-error)
+  (gl:pixel-store :unpack-row-length 0)
+  (gl:check-error))
+
+;;; This is fucking stupid.
+(defun texture-clear-rectangle (x0 y0 x1 y1)
+  (let* ((width (- x1 x0))
+         (height (- y1 y0))
+         (buffer (calloc (* 4 width height) 1)))
+    (unless (cffi:null-pointer-p buffer) ;)
+      (unwind-protect
+           (upload-subimage buffer x0 y0 width height :bgra :unsigned-byte)
+        (free buffer)))))
+
 (defun %cs-upload-to-leaf (leaf image)
   (multiple-value-bind (internal format type)
       (opengl-image-formats image)
-    (declare (ignore internal))
-    (assert (eql format :rgba))         ; FIXME..
-    (gl:pixel-store :unpack-row-length (image-pitch image))
-    ;; FIXME sometime maybe: use PBOs. Particularly beneficial for
-    ;; background-loaded stuff, if we start the pixel transfer from
-    ;; an event handler outside of repaint.
+    (declare (ignore internal))         ; Eh?
+    (when (sctree-pad leaf)             ; ARGH! The waste!
+      (texture-clear-rectangle (sctree-x0 leaf) (sctree-y0 leaf)
+                               (sctree-x1 leaf) (sctree-y1 leaf)))
     (cffi:with-pointer-to-vector-data (pointer (data-array image))
-      (gl:tex-sub-image-2d :texture-2d
-                           0
-                           (sctree-x0 leaf)
-                           (sctree-y0 leaf)
-                           (width image)
-                           (height image)
-                           format
-                           type
-                           pointer))
-    (gl:check-error)
-    (gl:pixel-store :unpack-row-length 0)
-    (gl:check-error)))
+      (upload-subimage pointer
+                       (+ (sctree-pad leaf) (sctree-x0 leaf))
+                       (+ (sctree-pad leaf) (sctree-y0 leaf))
+                       (width image)
+                       (height image)
+                       format type))))
 
-(defun cache-surface-allocate-image (cache image)
+(defun %cs-upload-from-foreign (leaf rgba-pointer width height)
+  (when (sctree-pad leaf)             ; ARGH! The waste!
+      (texture-clear-rectangle (sctree-x0 leaf) (sctree-y0 leaf)
+                               (sctree-x1 leaf) (sctree-y1 leaf)))
+  (upload-subimage rgba-pointer
+                   (+ (sctree-pad leaf) (sctree-x0 leaf))
+                   (+ (sctree-pad leaf) (sctree-y0 leaf))
+                   width
+                   height
+                   :rgba
+                   :unsigned-byte))
+
+(defun cache-surface-allocate-image (cache image &key (pad 1))
   ;; You *could* have multiple atlases in different formats, but it
   ;; seems counterproductive for my purposes.
-  (let ((leaf (%cs-allocate-leaf cache (width image) (height image))))
+  (let ((leaf (%cs-allocate-leaf cache
+                                 (+ pad pad (width image))
+                                 (+ pad pad (height image)))))
     (non-null leaf)
-    (assert (= (dimensions leaf) (dimensions image)))
-    (setf (sctree-allocant leaf) image
+    (assert (= (dimensions leaf) (+ (dimensions image)
+                                    (complex (* 2 pad) (* 2 pad)))))
+    (setf (sctree-pad leaf) pad
+          (sctree-allocant leaf) image
           (gethash (allocant-key image) (cache-surface-map cache)) leaf)
     (%cs-upload-to-leaf leaf image)
     (values leaf)))
+
+(defun cache-surface-reset (cache &key (clear nil))
+  (when clear
+    (let ((tree (cache-surface-tree cache)))
+      (%cs-evict-tree cache tree)
+      (when clear (texture-clear-rectangle 0 0 (width tree) (height tree))))))
 
 ;;; ----------------------------------------------------------------------
 
