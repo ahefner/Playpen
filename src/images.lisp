@@ -205,7 +205,6 @@
    :pixel-format pixel-format
    :data (or data
              (make-array (list height width)
-                         :initial-element 0
                          :element-type element-type))))
 
 (defmethod width ((image image-matrix))

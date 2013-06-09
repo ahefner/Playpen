@@ -281,3 +281,14 @@ to the right (e.g. (extend-shift #b101 3) => #b101111"
   (s :pointer)
   (c :int)
   (n size_t))
+
+
+(defun underlying-vector (array)
+  (typecase array
+    ((simple-array * 1) array)
+    (t (sb-kernel:%array-data-vector array))))
+
+(defmacro with-array-pointer ((pointer-var array-expr) &body body)
+  `(cffi:with-pointer-to-vector-data
+       (,pointer-var (underlying-vector ,array-expr))
+     ,@body))

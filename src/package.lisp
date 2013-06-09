@@ -37,6 +37,8 @@
    #:p>>=
    #:rectangle-contains-p
 
+   #:with-array-pointer
+
    ;;; C stuff
 
    #:size_t
@@ -337,6 +339,8 @@
    #:use-graphic-projection
    #:use-texture
    #:clear-screen
+
+   #:texture-update-rectangle
 
    #:transform-to-screen
    #:transform-from-screen

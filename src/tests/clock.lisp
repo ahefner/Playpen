@@ -36,9 +36,9 @@
 
 (defun draw-clock-face (image)
   (use-texture image)
-    (gl:begin :quads)
-    (playpen::%draw-rect* -1 1 1 -1)
-    (gl:end))
+  (gl:begin :quads)
+  (playpen::%draw-rect* -1 1 1 -1)
+  (gl:end))
 
 (defmethod handle-event ((this clock) (event expose))
   (with-graphics-context (this)

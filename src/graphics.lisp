@@ -218,7 +218,9 @@
   (gl:check-error)
   (multiple-value-bind (internal format type)
       (opengl-image-formats image)
-    (cffi:with-pointer-to-vector-data (pointer (data-array image))
+    (print (list image (type-of (data-array image)) ))
+    (with-array-pointer (pointer (data-array image))
+      (print (list image (type-of (data-array image)) pointer))
       (gl:pixel-store :unpack-row-length (image-pitch image))
       (cond
         ((mipmap-p texture)
@@ -256,6 +258,18 @@
     (texture-load texture image)
     texture))
 
+(defun texture-update-rectangle (image x0 y0 x1 y1)
+  (use-texture image)
+  (gl:pixel-store :unpack-row-length (image-pitch image))
+  (multiple-value-bind (internal format type)
+      (opengl-image-formats image)
+    (declare (ignore internal))
+    (with-array-pointer (pointer (data-array image))
+      (gl:tex-sub-image-2d
+       :texture-2d 0 x0 y0 (- x1 x0) (- y1 y0) format type
+       (cffi:inc-pointer pointer (* 4 (+ x0 (* y0 (image-pitch image))))))))
+  (gl:pixel-store :unpack-row-length 0)
+  (gl:check-error))
 
 (defun use-texture (image &key (mipmap t))
   (assert-gl-context)
@@ -341,7 +355,7 @@
     (gl:check-error)
     (multiple-value-bind (internal format type bytes-per-pixel)
         (opengl-image-formats image)
-      (cffi:with-pointer-to-vector-data (pointer (data-array image))
+      (with-array-pointer (pointer (data-array image))
         (gl:pixel-store :unpack-row-length (image-pitch image))
         (cond
           ((mipmap-p texture)
@@ -630,7 +644,7 @@
     (gl:check-error)))
 
 (defun upload-subimage (pointer x y width height format type &optional (pitch width))
-  (gl:pixel-store :unpack-row-length width)
+  (gl:pixel-store :unpack-row-length pitch)
   ;; FIXME sometime maybe: use PBOs. Particularly beneficial for
   ;; background-loaded stuff, if we start the pixel transfer from
   ;; an event handler outside of repaint.
@@ -663,7 +677,7 @@
     (when (sctree-pad leaf)             ; ARGH! The waste!
       (texture-clear-rectangle (sctree-x0 leaf) (sctree-y0 leaf)
                                (sctree-x1 leaf) (sctree-y1 leaf)))
-    (cffi:with-pointer-to-vector-data (pointer (data-array image))
+    (with-array-pointer (pointer (data-array image))
       (upload-subimage pointer
                        (+ (sctree-pad leaf) (sctree-x0 leaf))
                        (+ (sctree-pad leaf) (sctree-y0 leaf))

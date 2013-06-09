@@ -74,9 +74,10 @@
     (timeout)
     ;; Window events go through HANDLE-EVENT.
     (window-event
-     (call-with-*window*
-      (event-window event)
-      (lambda () (handle-event *window* event))))
+     (when (window-alive-p (event-window event))
+       (call-with-*window*
+        (event-window event)
+        (lambda () (handle-event *window* event)))))
     ;; IO events are handled separately.
     (io-ready
      (dispatch-io-event event))))

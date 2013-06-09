@@ -688,7 +688,7 @@ get_event_inner (struct event *event_out, int blocking, long long deadline)
             else if (tmp < 0)
             {
                 /* Something is amiss. */
-                perror("select");
+                if (errno != EINTR) perror("select");
                 XSync(display,False);
                 event_out->type = ev_Timeout; /* ? */
                 return;

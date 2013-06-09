@@ -36,10 +36,10 @@
    (background :initarg :background :initform #(0.3 0.1 0.1 1.0))
    (image
     :allocation :class
-    :initform (read-image-file "/home/hefner/test.png"))
+    :initform (read-image-file (builtin-asset-path "pepper.png")))
    (background-image
     :allocation :class
-    :initform (read-image-file "/home/hefner/test.jpg")))
+    :initform (read-image-file (builtin-asset-path "test-bg.jpg"))))
   (:default-initargs
    :application-name "Playpen Multiwindow Test"))
 

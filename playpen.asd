@@ -25,6 +25,7 @@
                              (:file "graphics")
                              (:file "freetype")
                              (:file "ui")
+
                              (:module tests
                               :serial t
                               :components
