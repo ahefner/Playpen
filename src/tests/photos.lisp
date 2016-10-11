@@ -6,6 +6,7 @@
 
 (defclass photos (window time-consumer)
   (;;(filenames :initarg :filenames)
+   (photos-path :initform (merge-pathnames "*.*" (user-homedir-pathname)) :initarg :path :accessor photos-path)
    (contents-area :initform 0 :accessor contents-area)
    (zoom :accessor zoom :initform 2.0)
    (zoom-target :accessor zoom :initform 0.2)
@@ -49,7 +50,7 @@
 (defclass finished-photoscan (window-event) ())
 
 (defun load-photos (app)
-  (let ((files (directory #p"/home/hefner/ptest2/*.*")))
+  (let ((files (directory (photos-path app))))
     (dolist (filename files)
       (ignore-errors
         (send app
