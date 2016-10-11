@@ -114,7 +114,7 @@
 
 (defvar *display-initialized* nil)
 
-(defun initialize-display (&optional (display-spec (asdf:getenv "DISPLAY")))
+(defun initialize-display (&optional (display-spec (uiop/os:getenv "DISPLAY")))
   (unless *display-initialized*
     (unless (zerop (%initialize-display display-spec))
       (error "Unable to initialize display ~A" display-spec))
